@@ -18,6 +18,7 @@ let profileImageUrl = '';
 let name = '';
 let jobTitle = '';
 let primaryLocation = '';
+let phoneNumber = '';
 let jobDescription = '';
 let tenantLogoUrl = '';
 	let defaultLanguage = 'en-US';
@@ -37,6 +38,7 @@ let tenantLogoUrl = '';
 				profile_image_url: profileImageUrl,
 				job_title: jobTitle ? jobTitle : null,
 				primary_location: primaryLocation ? primaryLocation : null,
+				phone_number: phoneNumber ? phoneNumber : null,
 				job_description: jobDescription ? jobDescription : null,
 				default_language: normalizedLanguage
 			}).catch((error) => {
@@ -53,6 +55,7 @@ let tenantLogoUrl = '';
 				if (sessionUser) {
 					jobTitle = sessionUser?.job_title ?? '';
 					primaryLocation = sessionUser?.primary_location ?? '';
+					phoneNumber = sessionUser?.phone_number ?? '';
 					jobDescription = sessionUser?.job_description ?? '';
 					profileImageUrl = sessionUser?.profile_image_url ?? profileImageUrl;
 					tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? tenantLogoUrl;
@@ -77,6 +80,7 @@ let tenantLogoUrl = '';
 				profileImageUrl = sessionUser?.profile_image_url ?? '';
 				jobTitle = sessionUser?.job_title ?? '';
 				primaryLocation = sessionUser?.primary_location ?? '';
+				phoneNumber = sessionUser?.phone_number ?? '';
 				jobDescription = sessionUser?.job_description ?? '';
 				tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? '';
 				defaultLanguage = normalizeLanguage(
@@ -157,6 +161,29 @@ let tenantLogoUrl = '';
 										</select>
 									</div>
 								</div>
+						</div>
+
+						<div class="flex flex-col w-full mt-2">
+							<div class=" mb-1 text-xs font-medium">{$i18n.t('Phone Number')}</div>
+
+							<div class="flex-1">
+								<input
+									class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
+									type="tel"
+									inputmode="tel"
+									pattern="\\+?[0-9\\s\\-()]*"
+									bind:value={phoneNumber}
+									maxlength={25}
+									placeholder={$i18n.t('Enter your phone number')}
+									on:input={(event) => {
+										const rawValue = event.currentTarget.value;
+										const hasLeadingPlus = rawValue.startsWith('+');
+										const allowedChars = rawValue.replace(/[^0-9()\-\s+]/g, '');
+										const noExtraPluses = allowedChars.replace(/\+/g, '');
+										phoneNumber = `${hasLeadingPlus ? '+' : ''}${noExtraPluses}`;
+									}}
+								/>
+							</div>
 						</div>
 
 						<div class="flex flex-col w-full mt-2">

@@ -180,6 +180,7 @@ class SessionUserInfoResponse(SessionUserResponse):
     date_of_birth: Optional[datetime.date] = None
     job_title: Optional[str] = None
     primary_location: Optional[str] = None
+    phone_number: Optional[str] = None
     job_description: Optional[str] = None
     tenant_logo_image_url: Optional[str] = None
 
@@ -242,6 +243,7 @@ async def get_session_user(
         "profile_image_url": user.profile_image_url,
         "job_title": user.job_title,
         "primary_location": user.primary_location,
+        "phone_number": user.phone_number,
         "job_description": user.job_description,
         "bio": user.bio,
         "gender": user.gender,

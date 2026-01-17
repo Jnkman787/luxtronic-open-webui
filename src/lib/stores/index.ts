@@ -294,6 +294,7 @@ export type SessionUser = {
 	profile_image_url: string;
 	job_title?: string | null;
 	primary_location?: string | null;
+	phone_number?: string | null;
 	job_description?: string | null;
 	bio?: string | null;
 	gender?: string | null;
