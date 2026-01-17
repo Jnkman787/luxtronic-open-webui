@@ -22,8 +22,38 @@ let phoneNumber = '';
 let jobDescription = '';
 let tenantLogoUrl = '';
 	let defaultLanguage = 'en-US';
+	const workDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+	let selectedWorkDays = new Set<number>();
+	let isAlwaysAvailable = false;
+	let workHoursStart = '';
+	let workHoursEnd = '';
 
 	const normalizeLanguage = (value: string) => (value === 'en-ES' ? 'es-ES' : value);
+	const toggleWorkDay = (index: number) => {
+		if (isAlwaysAvailable) {
+			isAlwaysAvailable = false;
+		}
+		const next = new Set(selectedWorkDays);
+		if (next.has(index)) {
+			next.delete(index);
+		} else {
+			next.add(index);
+		}
+		selectedWorkDays = next;
+	};
+	const setAllWorkDays = () => {
+		selectedWorkDays = new Set(workDays.map((_, index) => index));
+	};
+	const handleWorkHoursChange = (value: string, field: 'start' | 'end') => {
+		if (isAlwaysAvailable) {
+			isAlwaysAvailable = false;
+		}
+		if (field === 'start') {
+			workHoursStart = value;
+		} else {
+			workHoursEnd = value;
+		}
+	};
 
 	const submitHandler = async () => {
 		if (name !== $user?.name) {
@@ -225,6 +255,89 @@ let tenantLogoUrl = '';
 									bind:value={jobDescription}
 									placeholder={$i18n.t('Describe your role and responsibilities')}
 								/>
+							</div>
+						</div>
+
+						<div class="flex flex-col w-full mt-2">
+							<div class=" mb-1 text-xs font-medium">Work Hours (Availability)</div>
+
+							<div class="flex flex-wrap gap-2">
+								{#each workDays as day, index}
+									<button
+										type="button"
+										class={`h-8 w-8 rounded-full text-xs font-semibold transition ${
+											selectedWorkDays.has(index)
+												? 'bg-black text-white'
+												: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-300'
+										}`}
+										aria-pressed={selectedWorkDays.has(index)}
+										on:click={() => toggleWorkDay(index)}
+									>
+										{day}
+									</button>
+								{/each}
+							</div>
+
+							<div class="mt-3 flex items-center gap-3">
+								<input
+									class="w-32 text-sm dark:text-gray-300 bg-transparent outline-hidden"
+									type="time"
+									aria-label="Work hours start"
+									bind:value={workHoursStart}
+									on:input={(event) =>
+										handleWorkHoursChange(event.currentTarget.value, 'start')}
+								/>
+								<span class="text-xs text-gray-500">to</span>
+								<input
+									class="w-32 text-sm dark:text-gray-300 bg-transparent outline-hidden"
+									type="time"
+									aria-label="Work hours end"
+									bind:value={workHoursEnd}
+									on:input={(event) =>
+										handleWorkHoursChange(event.currentTarget.value, 'end')}
+								/>
+								<button
+									type="button"
+									class="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition"
+									aria-pressed={isAlwaysAvailable}
+									on:click={() => {
+										isAlwaysAvailable = !isAlwaysAvailable;
+										if (isAlwaysAvailable) {
+											setAllWorkDays();
+											workHoursStart = '00:00';
+											workHoursEnd = '23:59';
+										}
+									}}
+								>
+									<span
+										class={`flex h-5 w-5 items-center justify-center rounded border ${
+											isAlwaysAvailable
+												? 'border-black bg-black text-white'
+												: 'border-gray-300 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-900'
+										}`}
+										aria-hidden="true"
+									>
+										{#if isAlwaysAvailable}
+											<svg
+												class="h-3.5 w-3.5"
+												viewBox="0 0 12 10"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+											>
+												<path
+													d="M1 5L4.5 8.5L11 1.5"
+													stroke="currentColor"
+													stroke-width="1.5"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+												/>
+											</svg>
+										{/if}
+									</span>
+									<span class={isAlwaysAvailable ? 'text-black' : 'text-gray-500 dark:text-gray-300'}>
+										24/7
+									</span>
+								</button>
 							</div>
 						</div>
 					</div>
