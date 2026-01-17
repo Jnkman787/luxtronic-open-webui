@@ -54,6 +54,22 @@ let tenantLogoUrl = '';
 			workHoursEnd = value;
 		}
 	};
+	const parseWorkDays = (value: string | null | undefined) => {
+		if (!value) {
+			return new Set<number>();
+		}
+		const indices = value
+			.split(',')
+			.map((item) => Number(item))
+			.filter((item) => Number.isInteger(item) && item >= 0 && item < workDays.length);
+		return new Set<number>(indices);
+	};
+	const serializeWorkDays = () => {
+		if (!selectedWorkDays.size) {
+			return null;
+		}
+		return [...selectedWorkDays].sort((a, b) => a - b).join(',');
+	};
 
 	const submitHandler = async () => {
 		if (name !== $user?.name) {
@@ -63,12 +79,16 @@ let tenantLogoUrl = '';
 		}
 
 			const normalizedLanguage = normalizeLanguage(defaultLanguage);
+			const serializedWorkDays = serializeWorkDays();
 			const updatedUser = await updateUserProfile(localStorage.token, {
 				name: name,
 				profile_image_url: profileImageUrl,
 				job_title: jobTitle ? jobTitle : null,
 				primary_location: primaryLocation ? primaryLocation : null,
 				phone_number: phoneNumber ? phoneNumber : null,
+				work_days: serializedWorkDays,
+				work_hours_start: workHoursStart ? workHoursStart : null,
+				work_hours_end: workHoursEnd ? workHoursEnd : null,
 				job_description: jobDescription ? jobDescription : null,
 				default_language: normalizedLanguage
 			}).catch((error) => {
@@ -86,12 +106,19 @@ let tenantLogoUrl = '';
 					jobTitle = sessionUser?.job_title ?? '';
 					primaryLocation = sessionUser?.primary_location ?? '';
 					phoneNumber = sessionUser?.phone_number ?? '';
+					selectedWorkDays = parseWorkDays(sessionUser?.work_days);
+					workHoursStart = sessionUser?.work_hours_start ?? '';
+					workHoursEnd = sessionUser?.work_hours_end ?? '';
 					jobDescription = sessionUser?.job_description ?? '';
 					profileImageUrl = sessionUser?.profile_image_url ?? profileImageUrl;
 					tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? tenantLogoUrl;
 					defaultLanguage = normalizeLanguage(
 						sessionUser?.default_language ?? defaultLanguage
 					);
+					isAlwaysAvailable =
+						selectedWorkDays.size === workDays.length &&
+						workHoursStart === '00:00' &&
+						workHoursEnd === '23:59';
 				}
 				changeLanguage(normalizedLanguage);
 				return true;
@@ -111,11 +138,18 @@ let tenantLogoUrl = '';
 				jobTitle = sessionUser?.job_title ?? '';
 				primaryLocation = sessionUser?.primary_location ?? '';
 				phoneNumber = sessionUser?.phone_number ?? '';
+				selectedWorkDays = parseWorkDays(sessionUser?.work_days);
+				workHoursStart = sessionUser?.work_hours_start ?? '';
+				workHoursEnd = sessionUser?.work_hours_end ?? '';
 				jobDescription = sessionUser?.job_description ?? '';
 				tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? '';
 				defaultLanguage = normalizeLanguage(
 					sessionUser?.default_language ?? defaultLanguage
 				);
+				isAlwaysAvailable =
+					selectedWorkDays.size === workDays.length &&
+					workHoursStart === '00:00' &&
+					workHoursEnd === '23:59';
 
 			if (!tenantLogoUrl && sessionUser?.tenant_id) {
 				const tenant = await getTenantById(localStorage.token, sessionUser.tenant_id).catch(

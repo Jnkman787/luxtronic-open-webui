@@ -295,6 +295,9 @@ export type SessionUser = {
 	job_title?: string | null;
 	primary_location?: string | null;
 	phone_number?: string | null;
+	work_days?: string | null;
+	work_hours_start?: string | null;
+	work_hours_end?: string | null;
 	job_description?: string | null;
 	bio?: string | null;
 	gender?: string | null;
