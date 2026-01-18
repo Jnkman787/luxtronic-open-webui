@@ -22,11 +22,14 @@ let phoneNumber = '';
 let jobDescription = '';
 let tenantLogoUrl = '';
 	let defaultLanguage = 'en-US';
+	const defaultWorkDayIndices = [1, 2, 3, 4, 5];
+	const defaultWorkHoursStart = '09:00';
+	const defaultWorkHoursEnd = '17:00';
 	const workDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-	let selectedWorkDays = new Set<number>();
+	let selectedWorkDays = new Set<number>(defaultWorkDayIndices);
 	let isAlwaysAvailable = false;
-	let workHoursStart = '';
-	let workHoursEnd = '';
+	let workHoursStart = defaultWorkHoursStart;
+	let workHoursEnd = defaultWorkHoursEnd;
 
 	const normalizeLanguage = (value: string) => (value === 'en-ES' ? 'es-ES' : value);
 	const toggleWorkDay = (index: number) => {
@@ -70,6 +73,41 @@ let tenantLogoUrl = '';
 		}
 		return [...selectedWorkDays].sort((a, b) => a - b).join(',');
 	};
+	const resolveWorkDays = (value: string | null | undefined) =>
+		value ? parseWorkDays(value) : new Set<number>(defaultWorkDayIndices);
+	const applySessionUserFields = (sessionUser: typeof $user | null) => {
+		if (!sessionUser) {
+			name = '';
+			profileImageUrl = '';
+			jobTitle = '';
+			primaryLocation = '';
+			phoneNumber = '';
+			selectedWorkDays = new Set<number>(defaultWorkDayIndices);
+			workHoursStart = defaultWorkHoursStart;
+			workHoursEnd = defaultWorkHoursEnd;
+			jobDescription = '';
+			tenantLogoUrl = '';
+			defaultLanguage = normalizeLanguage(defaultLanguage);
+			isAlwaysAvailable = false;
+			return;
+		}
+
+		name = sessionUser?.name ?? '';
+		profileImageUrl = sessionUser?.profile_image_url ?? '';
+		jobTitle = sessionUser?.job_title ?? '';
+		primaryLocation = sessionUser?.primary_location ?? '';
+		phoneNumber = sessionUser?.phone_number ?? '';
+		selectedWorkDays = resolveWorkDays(sessionUser?.work_days);
+		workHoursStart = sessionUser?.work_hours_start ?? defaultWorkHoursStart;
+		workHoursEnd = sessionUser?.work_hours_end ?? defaultWorkHoursEnd;
+		jobDescription = sessionUser?.job_description ?? '';
+		tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? '';
+		defaultLanguage = normalizeLanguage(sessionUser?.default_language ?? defaultLanguage);
+		isAlwaysAvailable =
+			selectedWorkDays.size === workDays.length &&
+			workHoursStart === '00:00' &&
+			workHoursEnd === '23:59';
+	};
 
 	const submitHandler = async () => {
 		if (name !== $user?.name) {
@@ -102,24 +140,7 @@ let tenantLogoUrl = '';
 			});
 
 			await user.set(sessionUser);
-				if (sessionUser) {
-					jobTitle = sessionUser?.job_title ?? '';
-					primaryLocation = sessionUser?.primary_location ?? '';
-					phoneNumber = sessionUser?.phone_number ?? '';
-					selectedWorkDays = parseWorkDays(sessionUser?.work_days);
-					workHoursStart = sessionUser?.work_hours_start ?? '';
-					workHoursEnd = sessionUser?.work_hours_end ?? '';
-					jobDescription = sessionUser?.job_description ?? '';
-					profileImageUrl = sessionUser?.profile_image_url ?? profileImageUrl;
-					tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? tenantLogoUrl;
-					defaultLanguage = normalizeLanguage(
-						sessionUser?.default_language ?? defaultLanguage
-					);
-					isAlwaysAvailable =
-						selectedWorkDays.size === workDays.length &&
-						workHoursStart === '00:00' &&
-						workHoursEnd === '23:59';
-				}
+				applySessionUserFields(sessionUser);
 				changeLanguage(normalizedLanguage);
 				return true;
 			}
@@ -133,39 +154,23 @@ let tenantLogoUrl = '';
 		});
 
 			if (sessionUser) {
-				name = sessionUser?.name ?? '';
-				profileImageUrl = sessionUser?.profile_image_url ?? '';
-				jobTitle = sessionUser?.job_title ?? '';
-				primaryLocation = sessionUser?.primary_location ?? '';
-				phoneNumber = sessionUser?.phone_number ?? '';
-				selectedWorkDays = parseWorkDays(sessionUser?.work_days);
-				workHoursStart = sessionUser?.work_hours_start ?? '';
-				workHoursEnd = sessionUser?.work_hours_end ?? '';
-				jobDescription = sessionUser?.job_description ?? '';
-				tenantLogoUrl = sessionUser?.tenant_logo_image_url ?? '';
-				defaultLanguage = normalizeLanguage(
-					sessionUser?.default_language ?? defaultLanguage
-				);
-				isAlwaysAvailable =
-					selectedWorkDays.size === workDays.length &&
-					workHoursStart === '00:00' &&
-					workHoursEnd === '23:59';
+				applySessionUserFields(sessionUser);
 
-			if (!tenantLogoUrl && sessionUser?.tenant_id) {
-				const tenant = await getTenantById(localStorage.token, sessionUser.tenant_id).catch(
-					(error) => {
-						console.error(error);
-						return null;
+				if (!tenantLogoUrl && sessionUser?.tenant_id) {
+					const tenant = await getTenantById(localStorage.token, sessionUser.tenant_id).catch(
+						(error) => {
+							console.error(error);
+							return null;
+						}
+					);
+					if (tenant?.logo_image_url) {
+						tenantLogoUrl = tenant.logo_image_url;
 					}
-				);
-				if (tenant?.logo_image_url) {
-					tenantLogoUrl = tenant.logo_image_url;
 				}
+			} else {
+				applySessionUserFields(null);
 			}
-		} else {
-			tenantLogoUrl = '';
-		}
-	});
+		});
 </script>
 
 <div id="tab-account" class="flex flex-col h-full justify-between text-sm">

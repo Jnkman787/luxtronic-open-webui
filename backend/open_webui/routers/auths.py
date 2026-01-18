@@ -71,6 +71,10 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
+DEFAULT_WORK_DAYS = "1,2,3,4,5"
+DEFAULT_WORK_HOURS_START = "09:00"
+DEFAULT_WORK_HOURS_END = "17:00"
+
 
 def _mask_email(email: str) -> str:
     if "@" not in email:
@@ -234,6 +238,18 @@ async def get_session_user(
         if tenant:
             tenant_bucket = tenant.s3_bucket
             tenant_logo = tenant.logo_image_url
+
+    if not user.work_days or not user.work_hours_start or not user.work_hours_end:
+        updated = Users.update_user_by_id(
+            user.id,
+            {
+                "work_days": user.work_days or DEFAULT_WORK_DAYS,
+                "work_hours_start": user.work_hours_start or DEFAULT_WORK_HOURS_START,
+                "work_hours_end": user.work_hours_end or DEFAULT_WORK_HOURS_END,
+            },
+        )
+        if updated:
+            user = updated
 
     return {
         "token": token,
