@@ -9,7 +9,8 @@
 	import { generateInitialsImage } from '$lib/utils';
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import phoneCountryCodeOptions from '$lib/phone-country-codes.json';
-	import { parsePhoneNumberFromString } from 'libphonenumber-js';
+	import { getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
+	import type { CountryCode } from 'libphonenumber-js';
 	import UserProfileImage from './Account/UserProfileImage.svelte';
 
 	const i18n = getContext('i18n');
@@ -30,10 +31,24 @@
 	const defaultWorkHoursStart = '09:00';
 	const defaultWorkHoursEnd = '17:00';
 	const workDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-	const phoneCountryCodes = phoneCountryCodeOptions as Array<{ name: string; code: string }>;
+	const phoneCountryCodes = (phoneCountryCodeOptions as Array<{ name: string; iso2: string }>)
+		.map((option) => {
+			try {
+				return {
+					name: option.name,
+					iso2: option.iso2,
+					code: `+${getCountryCallingCode(option.iso2 as CountryCode)}`
+				};
+			} catch (error) {
+				console.error('Invalid country code entry', option, error);
+				return null;
+			}
+		})
+		.filter((option): option is { name: string; iso2: string; code: string } => option !== null)
+		.sort((a, b) => a.name.localeCompare(b.name));
 	const prioritizedPhoneCountryCodes = [
-		...phoneCountryCodes.filter((option) => option.name === 'United States'),
-		...phoneCountryCodes.filter((option) => option.name !== 'United States')
+		...phoneCountryCodes.filter((option) => option.iso2 === 'US'),
+		...phoneCountryCodes.filter((option) => option.iso2 !== 'US')
 	];
 	let selectedWorkDays = new Set<number>(defaultWorkDayIndices);
 	let isAlwaysAvailable = false;
