@@ -3,29 +3,36 @@
 	import { onMount, getContext } from 'svelte';
 
 	import { user } from '$lib/stores';
-import { updateUserProfile, getSessionUser } from '$lib/apis/auths';
-import { changeLanguage } from '$lib/i18n';
-import { getTenantById } from '$lib/apis/tenants';
+	import { updateUserProfile, getSessionUser } from '$lib/apis/auths';
+	import { changeLanguage } from '$lib/i18n';
+	import { getTenantById } from '$lib/apis/tenants';
 	import { generateInitialsImage } from '$lib/utils';
 	import Textarea from '$lib/components/common/Textarea.svelte';
+	import phoneCountryCodeOptions from '$lib/phone-country-codes.json';
 	import UserProfileImage from './Account/UserProfileImage.svelte';
 
 	const i18n = getContext('i18n');
 
 	export let saveHandler: Function;
 
-let profileImageUrl = '';
-let name = '';
-let jobTitle = '';
-let primaryLocation = '';
-let phoneNumber = '';
-let jobDescription = '';
-let tenantLogoUrl = '';
+	let profileImageUrl = '';
+	let name = '';
+	let jobTitle = '';
+	let primaryLocation = '';
+	let phoneNumber = '';
+	let phoneCountryCode = '+1';
+	let jobDescription = '';
+	let tenantLogoUrl = '';
 	let defaultLanguage = 'en-US';
 	const defaultWorkDayIndices = [1, 2, 3, 4, 5];
 	const defaultWorkHoursStart = '09:00';
 	const defaultWorkHoursEnd = '17:00';
 	const workDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+	const phoneCountryCodes = phoneCountryCodeOptions as Array<{ name: string; code: string }>;
+	const prioritizedPhoneCountryCodes = [
+		...phoneCountryCodes.filter((option) => option.name === 'United States'),
+		...phoneCountryCodes.filter((option) => option.name !== 'United States')
+	];
 	let selectedWorkDays = new Set<number>(defaultWorkDayIndices);
 	let isAlwaysAvailable = false;
 	let workHoursStart = defaultWorkHoursStart;
@@ -75,6 +82,35 @@ let tenantLogoUrl = '';
 	};
 	const resolveWorkDays = (value: string | null | undefined) =>
 		value ? parseWorkDays(value) : new Set<number>(defaultWorkDayIndices);
+	const phoneCountryCodeDigits = (value: string) => value.replace(/\D/g, '');
+const phoneCountryCodeDigitsList = phoneCountryCodes
+		.map((option) => phoneCountryCodeDigits(option.code))
+		.sort((a, b) => b.length - a.length);
+	const parsePhoneE164 = (value: string | null | undefined) => {
+		if (!value) {
+			return { countryCode: phoneCountryCode, nationalNumber: '' };
+		}
+		const digits = value.replace(/\D/g, '');
+		if (!digits) {
+			return { countryCode: phoneCountryCode, nationalNumber: '' };
+		}
+		const matchedCode = phoneCountryCodeDigitsList.find((code) => digits.startsWith(code));
+		if (matchedCode) {
+			return {
+				countryCode: `+${matchedCode}`,
+				nationalNumber: digits.slice(matchedCode.length)
+			};
+		}
+		return { countryCode: phoneCountryCode, nationalNumber: digits };
+	};
+	const buildPhoneE164 = (countryCode: string, number: string) => {
+		const codeDigits = phoneCountryCodeDigits(countryCode);
+		const numberDigits = number.replace(/\D/g, '');
+		if (!codeDigits || !numberDigits) {
+			return null;
+		}
+		return `+${codeDigits}${numberDigits}`;
+	};
 	const applySessionUserFields = (sessionUser: typeof $user | null) => {
 		if (!sessionUser) {
 			name = '';
@@ -82,6 +118,7 @@ let tenantLogoUrl = '';
 			jobTitle = '';
 			primaryLocation = '';
 			phoneNumber = '';
+			phoneCountryCode = '+1';
 			selectedWorkDays = new Set<number>(defaultWorkDayIndices);
 			workHoursStart = defaultWorkHoursStart;
 			workHoursEnd = defaultWorkHoursEnd;
@@ -96,7 +133,9 @@ let tenantLogoUrl = '';
 		profileImageUrl = sessionUser?.profile_image_url ?? '';
 		jobTitle = sessionUser?.job_title ?? '';
 		primaryLocation = sessionUser?.primary_location ?? '';
-		phoneNumber = sessionUser?.phone_number ?? '';
+		const parsedPhone = parsePhoneE164(sessionUser?.phone_number);
+		phoneNumber = parsedPhone.nationalNumber;
+		phoneCountryCode = parsedPhone.countryCode;
 		selectedWorkDays = resolveWorkDays(sessionUser?.work_days);
 		workHoursStart = sessionUser?.work_hours_start ?? defaultWorkHoursStart;
 		workHoursEnd = sessionUser?.work_hours_end ?? defaultWorkHoursEnd;
@@ -118,12 +157,13 @@ let tenantLogoUrl = '';
 
 			const normalizedLanguage = normalizeLanguage(defaultLanguage);
 			const serializedWorkDays = serializeWorkDays();
+			const combinedPhoneNumber = buildPhoneE164(phoneCountryCode, phoneNumber);
 			const updatedUser = await updateUserProfile(localStorage.token, {
 				name: name,
 				profile_image_url: profileImageUrl,
 				job_title: jobTitle ? jobTitle : null,
 				primary_location: primaryLocation ? primaryLocation : null,
-				phone_number: phoneNumber ? phoneNumber : null,
+				phone_number: combinedPhoneNumber,
 				work_days: serializedWorkDays,
 				work_hours_start: workHoursStart ? workHoursStart : null,
 				work_hours_end: workHoursEnd ? workHoursEnd : null,
@@ -134,10 +174,10 @@ let tenantLogoUrl = '';
 			});
 
 		if (updatedUser) {
-			const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
-				toast.error(`${error}`);
-				return null;
-			});
+				const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
+					toast.error(`${error}`);
+					return null;
+				});
 
 			await user.set(sessionUser);
 				applySessionUserFields(sessionUser);
@@ -160,12 +200,12 @@ let tenantLogoUrl = '';
 					const tenant = await getTenantById(localStorage.token, sessionUser.tenant_id).catch(
 						(error) => {
 							console.error(error);
-							return null;
-						}
-					);
-					if (tenant?.logo_image_url) {
-						tenantLogoUrl = tenant.logo_image_url;
+						return null;
 					}
+				);
+				if (tenant?.logo_image_url) {
+					tenantLogoUrl = tenant.logo_image_url;
+				}
 				}
 			} else {
 				applySessionUserFields(null);
@@ -220,7 +260,7 @@ let tenantLogoUrl = '';
 								<div class="flex flex-col w-full mt-2">
 									<div class=" mb-1 text-xs font-medium">{$i18n.t('Default Language')}</div>
 
-									<div class="flex-1">
+								<div class="flex-1">
 										<select
 											class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
 											bind:value={defaultLanguage}
@@ -235,23 +275,61 @@ let tenantLogoUrl = '';
 						<div class="flex flex-col w-full mt-2">
 							<div class=" mb-1 text-xs font-medium">{$i18n.t('Phone Number')}</div>
 
-							<div class="flex-1">
-								<input
-									class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
-									type="tel"
-									inputmode="tel"
-									pattern="\\+?[0-9\\s\\-()]*"
-									bind:value={phoneNumber}
-									maxlength={25}
-									placeholder={$i18n.t('Enter your phone number')}
-									on:input={(event) => {
-										const rawValue = event.currentTarget.value;
-										const hasLeadingPlus = rawValue.startsWith('+');
-										const allowedChars = rawValue.replace(/[^0-9()\-\s+]/g, '');
-										const noExtraPluses = allowedChars.replace(/\+/g, '');
-										phoneNumber = `${hasLeadingPlus ? '+' : ''}${noExtraPluses}`;
-									}}
-								/>
+							<div class="flex w-full gap-2">
+								<div
+									class="relative w-20 rounded-xl bg-gray-100 pl-3 pr-6 text-sm text-gray-900 dark:bg-gray-800 dark:text-gray-300"
+								>
+									<span class="flex h-9 items-center">{phoneCountryCode}</span>
+									<svg
+										class="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-300"
+										viewBox="0 0 20 20"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+											clip-rule="evenodd"
+										/>
+									</svg>
+									<select
+										class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+										bind:value={phoneCountryCode}
+										aria-label={$i18n.t('Country Code')}
+									>
+									{#each prioritizedPhoneCountryCodes as option}
+										<option value={option.code}>
+											{option.name} ({option.code})
+										</option>
+									{/each}
+									</select>
+								</div>
+
+								<div class="flex-1">
+									<input
+										class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
+										type="tel"
+										inputmode="numeric"
+										pattern="[0-9]*"
+										bind:value={phoneNumber}
+										maxlength={10}
+										placeholder={$i18n.t('Enter your phone number')}
+										on:beforeinput={(event) => {
+											if (event.data && /[^0-9]/.test(event.data)) {
+												event.preventDefault();
+											}
+										}}
+										on:keydown={(event) => {
+											if (event.key.length === 1 && /[^0-9]/.test(event.key)) {
+												event.preventDefault();
+											}
+										}}
+										on:input={(event) => {
+											const rawValue = event.currentTarget.value;
+											phoneNumber = rawValue.replace(/\\D/g, '').slice(0, 10);
+										}}
+									/>
+								</div>
 							</div>
 						</div>
 
@@ -298,7 +376,7 @@ let tenantLogoUrl = '';
 						</div>
 
 						<div class="flex flex-col w-full mt-2">
-							<div class=" mb-1 text-xs font-medium">Work Hours (Availability)</div>
+							<div class=" mb-1 text-xs font-medium">{$i18n.t('Work Hours (Availability)')}</div>
 
 							<div class="flex flex-wrap gap-2">
 								{#each workDays as day, index}
@@ -326,7 +404,7 @@ let tenantLogoUrl = '';
 									on:input={(event) =>
 										handleWorkHoursChange(event.currentTarget.value, 'start')}
 								/>
-								<span class="text-xs text-gray-500">to</span>
+								<span class="text-xs text-gray-500">{$i18n.t('to')}</span>
 								<input
 									class="w-32 text-sm dark:text-gray-300 bg-transparent outline-hidden"
 									type="time"
