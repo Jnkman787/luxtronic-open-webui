@@ -21,6 +21,7 @@
 	let primaryLocation = '';
 	let phoneNumber = '';
 	let phoneCountryCode = '+1';
+	let phoneNumberError = '';
 	let jobDescription = '';
 	let tenantLogoUrl = '';
 	let defaultLanguage = 'en-US';
@@ -111,6 +112,9 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 		}
 		return `+${codeDigits}${numberDigits}`;
 	};
+	const resetPhoneNumberError = () => {
+		phoneNumberError = '';
+	};
 	const applySessionUserFields = (sessionUser: typeof $user | null) => {
 		if (!sessionUser) {
 			name = '';
@@ -158,6 +162,10 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 			const normalizedLanguage = normalizeLanguage(defaultLanguage);
 			const serializedWorkDays = serializeWorkDays();
 			const combinedPhoneNumber = buildPhoneE164(phoneCountryCode, phoneNumber);
+			if (phoneNumber && phoneNumber.length !== 10) {
+				phoneNumberError = $i18n.t('Invalid phone number');
+				return false;
+			}
 			const updatedUser = await updateUserProfile(localStorage.token, {
 				name: name,
 				profile_image_url: profileImageUrl,
@@ -307,7 +315,11 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 
 								<div class="flex-1">
 									<input
-										class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
+										class={`w-full text-sm dark:text-gray-300 bg-transparent outline-hidden ${
+											phoneNumberError
+												? 'ring-1 ring-red-500 focus:ring-1 focus:ring-red-500'
+												: ''
+										}`}
 										type="tel"
 										inputmode="numeric"
 										pattern="[0-9]*"
@@ -324,6 +336,7 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 												event.preventDefault();
 											}
 										}}
+										on:focus={resetPhoneNumberError}
 										on:input={(event) => {
 											const rawValue = event.currentTarget.value;
 											phoneNumber = rawValue.replace(/\\D/g, '').slice(0, 10);
@@ -331,6 +344,9 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 									/>
 								</div>
 							</div>
+							{#if phoneNumberError}
+								<div class="mt-1 text-xs text-red-500">{phoneNumberError}</div>
+							{/if}
 						</div>
 
 						<div class="flex flex-col w-full mt-2">
