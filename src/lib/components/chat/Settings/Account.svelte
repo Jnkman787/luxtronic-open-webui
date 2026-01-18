@@ -9,6 +9,7 @@
 	import { generateInitialsImage } from '$lib/utils';
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import phoneCountryCodeOptions from '$lib/phone-country-codes.json';
+	import { parsePhoneNumberFromString } from 'libphonenumber-js';
 	import UserProfileImage from './Account/UserProfileImage.svelte';
 
 	const i18n = getContext('i18n');
@@ -84,12 +85,19 @@
 	const resolveWorkDays = (value: string | null | undefined) =>
 		value ? parseWorkDays(value) : new Set<number>(defaultWorkDayIndices);
 	const phoneCountryCodeDigits = (value: string) => value.replace(/\D/g, '');
-const phoneCountryCodeDigitsList = phoneCountryCodes
+	const phoneCountryCodeDigitsList = phoneCountryCodes
 		.map((option) => phoneCountryCodeDigits(option.code))
 		.sort((a, b) => b.length - a.length);
 	const parsePhoneE164 = (value: string | null | undefined) => {
 		if (!value) {
 			return { countryCode: phoneCountryCode, nationalNumber: '' };
+		}
+		const parsed = parsePhoneNumberFromString(value);
+		if (parsed?.countryCallingCode) {
+			return {
+				countryCode: `+${parsed.countryCallingCode}`,
+				nationalNumber: parsed.nationalNumber
+			};
 		}
 		const digits = value.replace(/\D/g, '');
 		if (!digits) {
@@ -111,6 +119,18 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 			return null;
 		}
 		return `+${codeDigits}${numberDigits}`;
+	};
+	const isValidPhoneNumber = (countryCode: string, number: string) => {
+		const e164 = buildPhoneE164(countryCode, number);
+		if (!e164) {
+			return false;
+		}
+		const parsed = parsePhoneNumberFromString(e164);
+		if (!parsed || !parsed.isValid()) {
+			return false;
+		}
+		const selectedCodeDigits = phoneCountryCodeDigits(countryCode);
+		return parsed.countryCallingCode === selectedCodeDigits;
 	};
 	const resetPhoneNumberError = () => {
 		phoneNumberError = '';
@@ -162,7 +182,7 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 			const normalizedLanguage = normalizeLanguage(defaultLanguage);
 			const serializedWorkDays = serializeWorkDays();
 			const combinedPhoneNumber = buildPhoneE164(phoneCountryCode, phoneNumber);
-			if (phoneNumber && phoneNumber.length !== 10) {
+			if (phoneNumber && !isValidPhoneNumber(phoneCountryCode, phoneNumber)) {
 				phoneNumberError = $i18n.t('Invalid phone number');
 				return false;
 			}
@@ -304,6 +324,7 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 										class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
 										bind:value={phoneCountryCode}
 										aria-label={$i18n.t('Country Code')}
+										on:change={resetPhoneNumberError}
 									>
 									{#each prioritizedPhoneCountryCodes as option}
 										<option value={option.code}>
@@ -324,7 +345,7 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 										inputmode="numeric"
 										pattern="[0-9]*"
 										bind:value={phoneNumber}
-										maxlength={10}
+										maxlength={15}
 										placeholder={$i18n.t('Enter your phone number')}
 										on:beforeinput={(event) => {
 											if (event.data && /[^0-9]/.test(event.data)) {
@@ -339,7 +360,7 @@ const phoneCountryCodeDigitsList = phoneCountryCodes
 										on:focus={resetPhoneNumberError}
 										on:input={(event) => {
 											const rawValue = event.currentTarget.value;
-											phoneNumber = rawValue.replace(/\\D/g, '').slice(0, 10);
+											phoneNumber = rawValue.replace(/\\D/g, '').slice(0, 15);
 										}}
 									/>
 								</div>
