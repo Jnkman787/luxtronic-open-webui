@@ -9,7 +9,7 @@
 	import { generateInitialsImage } from '$lib/utils';
 	import Textarea from '$lib/components/common/Textarea.svelte';
 	import phoneCountryCodeOptions from '$lib/phone-country-codes.json';
-	import { getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
+	import { AsYouType, getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
 	import type { CountryCode } from 'libphonenumber-js';
 	import UserProfileImage from './Account/UserProfileImage.svelte';
 
@@ -103,6 +103,224 @@
 	const phoneCountryCodeDigitsList = phoneCountryCodes
 		.map((option) => phoneCountryCodeDigits(option.code))
 		.sort((a, b) => b.length - a.length);
+	const MAX_E164_DIGITS = 15;
+	const resolveCountryIso2 = (countryCode: string) =>
+		phoneCountryCodes.find((option) => option.code === countryCode)?.iso2?.toUpperCase() ??
+		undefined;
+	const phoneTemplateCache = new Map<
+		string,
+		{ template: string; maxDigits: number; positions: number[] }
+	>();
+	let suppressPhoneInputCaret = false;
+	const buildTemplateForSeed = (seedDigit: string, iso2?: string) => {
+		const typer = new AsYouType(iso2 as CountryCode | undefined);
+		let lastTemplate = typer.getTemplate() || '';
+		for (let index = 0; index < MAX_E164_DIGITS; index += 1) {
+			typer.input(seedDigit);
+			const nextTemplate = typer.getTemplate();
+			if (nextTemplate) {
+				lastTemplate = nextTemplate;
+			}
+		}
+		const maxDigits = (lastTemplate.match(/x/g) ?? []).length;
+		const positions = lastTemplate
+			? [...lastTemplate]
+					.map((char, index) => (char === 'x' ? index : null))
+					.filter((index): index is number => index !== null)
+			: [];
+		return { template: lastTemplate, maxDigits, positions };
+	};
+	const resolvePhoneTemplate = (countryCode: string) => {
+		const cacheKey = countryCode;
+		const cached = phoneTemplateCache.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+		const isNanp = phoneCountryCodeDigits(countryCode) === '1';
+		if (isNanp) {
+			const template = '(xxx) xxx-xxxx';
+			const positions = [...template]
+				.map((char, index) => (char === 'x' ? index : null))
+				.filter((index): index is number => index !== null);
+			const templateData = { template, maxDigits: 10, positions };
+			phoneTemplateCache.set(cacheKey, templateData);
+			return templateData;
+		}
+		const iso2 = resolveCountryIso2(countryCode);
+		let bestTemplate = { template: '', maxDigits: 0, positions: [] as number[] };
+		['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].forEach((seedDigit) => {
+			const candidate = buildTemplateForSeed(seedDigit, iso2);
+			if (
+				candidate.maxDigits > bestTemplate.maxDigits ||
+				(candidate.maxDigits === bestTemplate.maxDigits &&
+					candidate.template.length > bestTemplate.template.length)
+			) {
+				bestTemplate = candidate;
+			}
+		});
+		const templateData = {
+			template: bestTemplate.template,
+			maxDigits: bestTemplate.maxDigits || MAX_E164_DIGITS,
+			positions: bestTemplate.positions
+		};
+		phoneTemplateCache.set(cacheKey, templateData);
+		return templateData;
+	};
+	const buildPhoneMaskData = (digits: string, countryCode: string) => {
+		const normalized = digits.replace(/\D/g, '').slice(0, MAX_E164_DIGITS);
+		const templateData = resolvePhoneTemplate(countryCode);
+		const template = templateData.template;
+
+		if (!template) {
+			const fallback = normalized;
+			const positions = [...fallback]
+				.map((char, index) => (/\d/.test(char) ? index : null))
+				.filter((index): index is number => index !== null);
+			return {
+				masked: fallback,
+				positions,
+				maxDigits: MAX_E164_DIGITS,
+				digits: normalized
+			};
+		}
+
+		const maxDigits = templateData.maxDigits || MAX_E164_DIGITS;
+		const trimmed = normalized.slice(0, maxDigits);
+		let masked = '';
+		let digitIndex = 0;
+		for (let index = 0; index < template.length; index += 1) {
+			const char = template[index];
+			if (char === 'x') {
+				masked += digitIndex < trimmed.length ? trimmed[digitIndex] : '_';
+				digitIndex += 1;
+			} else {
+				masked += char;
+			}
+		}
+		const positions = [...masked]
+			.map((char, index) => (char === '_' || /\d/.test(char) ? index : null))
+			.filter((index): index is number => index !== null);
+		return {
+			masked,
+			positions,
+			maxDigits,
+			digits: trimmed
+		};
+	};
+	const formatPhoneInputValue = (digits: string, countryCode: string) =>
+		buildPhoneMaskData(digits, countryCode).masked;
+	const positionPhoneCaret = (target: HTMLInputElement, formatted: string) => {
+		const nextBlank = formatted.indexOf('_');
+		const caret = nextBlank === -1 ? formatted.length : nextBlank;
+		target.setSelectionRange(caret, caret);
+		requestAnimationFrame(() => {
+			target.setSelectionRange(caret, caret);
+		});
+	};
+	const positionPhoneCaretByDigits = (
+		target: HTMLInputElement,
+		maskData: { masked: string; positions: number[] },
+		digitsLength: number
+	) => {
+		if (!maskData.positions.length) {
+			positionPhoneCaret(target, maskData.masked);
+			return;
+		}
+		const index = Math.min(digitsLength, maskData.positions.length);
+		let caret: number;
+		if (index >= maskData.positions.length) {
+			const nextBlank = maskData.masked.indexOf('_');
+			caret = nextBlank === -1 ? maskData.masked.length : nextBlank;
+		} else {
+			caret = maskData.positions[index];
+		}
+		target.setSelectionRange(caret, caret);
+		requestAnimationFrame(() => {
+			target.setSelectionRange(caret, caret);
+		});
+	};
+	const handlePhoneInput = (event: Event) => {
+		const target = event.currentTarget as HTMLInputElement;
+		const rawDigits = target.value.replace(/\D/g, '');
+		const maskData = buildPhoneMaskData(rawDigits, phoneCountryCode);
+		phoneNumber = maskData.digits;
+		target.value = maskData.masked;
+		if (suppressPhoneInputCaret) {
+			suppressPhoneInputCaret = false;
+			return;
+		}
+		positionPhoneCaretByDigits(target, maskData, maskData.digits.length);
+	};
+	const handlePhoneKeydown = (event: KeyboardEvent) => {
+		if (event.key !== 'Backspace' && event.key !== 'Delete') {
+			return;
+		}
+		const target = event.currentTarget as HTMLInputElement;
+		if (!phoneNumber.length) {
+			event.preventDefault();
+			const { masked, positions } = buildPhoneMaskData(phoneNumber, phoneCountryCode);
+			target.value = masked;
+			const caret = positions[0] ?? 0;
+			requestAnimationFrame(() => {
+				target.setSelectionRange(caret, caret);
+			});
+			return;
+		}
+		const selectionStart = target.selectionStart ?? 0;
+		const selectionEnd = target.selectionEnd ?? 0;
+		const isSelection = selectionStart !== selectionEnd;
+		const removeIndices: number[] = [];
+		const { positions } = buildPhoneMaskData(phoneNumber, phoneCountryCode);
+		if (!positions.length) {
+			return;
+		}
+
+		if (isSelection) {
+			positions.forEach((pos, index) => {
+				if (pos >= selectionStart && pos < selectionEnd) {
+					removeIndices.push(index);
+				}
+			});
+		} else if (event.key === 'Backspace') {
+			const prevPos = [...positions].filter((pos) => pos < selectionStart).pop();
+			if (prevPos !== undefined) {
+				removeIndices.push(positions.indexOf(prevPos));
+			}
+		} else {
+			const nextPos = positions.find((pos) => pos >= selectionStart);
+			if (nextPos !== undefined) {
+				removeIndices.push(positions.indexOf(nextPos));
+			}
+		}
+
+		if (!removeIndices.length) {
+			return;
+		}
+		event.preventDefault();
+		suppressPhoneInputCaret = true;
+		phoneNumber = phoneNumber
+			.split('')
+			.filter((_, index) => !removeIndices.includes(index))
+			.join('');
+		const nextMaskData = buildPhoneMaskData(phoneNumber, phoneCountryCode);
+		target.value = nextMaskData.masked;
+
+		let caret = nextMaskData.positions[0] ?? 0;
+		if (isSelection) {
+			caret =
+				nextMaskData.positions.find((pos) => pos >= selectionStart) ??
+				nextMaskData.masked.length;
+		} else if (event.key === 'Backspace') {
+			caret = [...nextMaskData.positions].filter((pos) => pos < selectionStart).pop() ?? caret;
+		} else {
+			caret =
+				nextMaskData.positions.find((pos) => pos >= selectionStart) ??
+				nextMaskData.masked.length;
+		}
+		requestAnimationFrame(() => {
+			target.setSelectionRange(caret, caret);
+		});
+	};
 	const parsePhoneE164 = (value: string | null | undefined) => {
 		if (!value) {
 			return { countryCode: phoneCountryCode, nationalNumber: '' };
@@ -149,6 +367,13 @@
 	};
 	const resetPhoneNumberError = () => {
 		phoneNumberError = '';
+	};
+	const handlePhoneFocus = (event: Event) => {
+		resetPhoneNumberError();
+		const target = event.currentTarget as HTMLInputElement;
+		const { masked } = buildPhoneMaskData(phoneNumber, phoneCountryCode);
+		target.value = masked;
+		positionPhoneCaret(target, masked);
 	};
 	const applySessionUserFields = (sessionUser: typeof $user | null) => {
 		if (!sessionUser) {
@@ -359,8 +584,7 @@
 										type="tel"
 										inputmode="numeric"
 										pattern="[0-9]*"
-										bind:value={phoneNumber}
-										maxlength={15}
+										value={formatPhoneInputValue(phoneNumber, phoneCountryCode)}
 										placeholder={$i18n.t('Enter your phone number')}
 										on:beforeinput={(event) => {
 											if (event.data && /[^0-9]/.test(event.data)) {
@@ -372,11 +596,9 @@
 												event.preventDefault();
 											}
 										}}
-										on:focus={resetPhoneNumberError}
-										on:input={(event) => {
-											const rawValue = event.currentTarget.value;
-											phoneNumber = rawValue.replace(/\\D/g, '').slice(0, 15);
-										}}
+										on:focus={handlePhoneFocus}
+										on:input={handlePhoneInput}
+										on:keydown={handlePhoneKeydown}
 									/>
 								</div>
 							</div>
