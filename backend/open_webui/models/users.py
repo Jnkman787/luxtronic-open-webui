@@ -35,6 +35,10 @@ class User(Base):
 
     job_title = Column(String(255), nullable=True)
     primary_location = Column(String(255), nullable=True)
+    phone_number = Column(String(25), nullable=True)
+    work_days = Column(String(20), nullable=True)
+    work_hours_start = Column(String(5), nullable=True)
+    work_hours_end = Column(String(5), nullable=True)
     job_description = Column(String(2500), nullable=True)
     default_language = Column(String(10), nullable=False, server_default="en-US")
 
@@ -74,6 +78,10 @@ class UserModel(BaseModel):
 
     job_title: Optional[str] = None
     primary_location: Optional[str] = None
+    phone_number: Optional[str] = None
+    work_days: Optional[str] = None
+    work_hours_start: Optional[str] = None
+    work_hours_end: Optional[str] = None
     job_description: Optional[str] = None
     default_language: str = "en-US"
 
@@ -106,6 +114,10 @@ class UpdateProfileForm(BaseModel):
     name: str
     job_title: Optional[constr(max_length=255)] = None
     primary_location: Optional[constr(max_length=255)] = None
+    phone_number: Optional[constr(max_length=25)] = None
+    work_days: Optional[constr(max_length=20)] = None
+    work_hours_start: Optional[constr(max_length=5)] = None
+    work_hours_end: Optional[constr(max_length=5)] = None
     job_description: Optional[constr(max_length=2500)] = None
     default_language: Optional[str] = None
     bio: Optional[str] = None
@@ -147,6 +159,10 @@ class UserResponse(BaseModel):
     email: str
     role: str
     profile_image_url: str
+    phone_number: Optional[str] = None
+    work_days: Optional[str] = None
+    work_hours_start: Optional[str] = None
+    work_hours_end: Optional[str] = None
     tenant_id: Optional[str] = None
 
 
