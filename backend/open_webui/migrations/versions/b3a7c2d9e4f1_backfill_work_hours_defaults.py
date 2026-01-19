@@ -17,10 +17,27 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Use SQLAlchemy table construct for dialect-agnostic quoting
+    user_table = sa.table(
+        "user",
+        sa.column("work_days"),
+        sa.column("work_hours_start"),
+        sa.column("work_hours_end"),
+    )
     op.execute(
-        "UPDATE \"user\" SET work_days = '1,2,3,4,5', "
-        "work_hours_start = '09:00', work_hours_end = '17:00' "
-        "WHERE work_days IS NULL OR work_hours_start IS NULL OR work_hours_end IS NULL"
+        user_table.update()
+        .where(
+            sa.or_(
+                user_table.c.work_days.is_(None),
+                user_table.c.work_hours_start.is_(None),
+                user_table.c.work_hours_end.is_(None),
+            )
+        )
+        .values(
+            work_days="1,2,3,4,5",
+            work_hours_start="09:00",
+            work_hours_end="17:00",
+        )
     )
     op.alter_column(
         "user",
