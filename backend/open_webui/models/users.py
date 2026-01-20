@@ -1,7 +1,7 @@
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, JSONField, get_db
+from open_webui.internal.db import Base, JSONField, get_db, get_table_name
 
 
 from open_webui.env import DATABASE_USER_ACTIVE_STATUS_UPDATE_INTERVAL
@@ -22,7 +22,7 @@ import datetime
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = get_table_name("user")
 
     id = Column(String, primary_key=True)
     name = Column(String)

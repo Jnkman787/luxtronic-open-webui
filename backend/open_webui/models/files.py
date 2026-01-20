@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, JSONField, get_db
+from open_webui.internal.db import Base, JSONField, get_db, get_table_name
 from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text, JSON
@@ -16,7 +16,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class File(Base):
-    __tablename__ = "file"
+    __tablename__ = get_table_name("file")
     id = Column(String, primary_key=True)
     user_id = Column(String)
     hash = Column(Text, nullable=True)

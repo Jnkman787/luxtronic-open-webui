@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 import datetime
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.users import UserModel, Users
 from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Auth(Base):
-    __tablename__ = "auth"
+    __tablename__ = get_table_name("auth")
 
     id = Column(String, primary_key=True)
     email = Column(String)

@@ -4,7 +4,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.tags import TagModel, Tag, Tags
 from open_webui.models.folders import Folders
 from open_webui.env import SRC_LOG_LEVELS
@@ -24,7 +24,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Chat(Base):
-    __tablename__ = "chat"
+    __tablename__ = get_table_name("chat")
 
     id = Column(String, primary_key=True)
     user_id = Column(String)

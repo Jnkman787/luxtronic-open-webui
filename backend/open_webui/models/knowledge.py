@@ -4,7 +4,7 @@ import time
 from typing import Optional
 import uuid
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.env import SRC_LOG_LEVELS
 
 from open_webui.models.files import FileMetadataResponse
@@ -26,7 +26,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Knowledge(Base):
-    __tablename__ = "knowledge"
+    __tablename__ = get_table_name("knowledge")
 
     id = Column(Text, unique=True, primary_key=True)
     user_id = Column(Text)
