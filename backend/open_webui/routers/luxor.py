@@ -34,6 +34,8 @@ async def send_post_request(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
         )
         api_key = os.environ.get("RAG_MASTER_API_KEY", "")
+        log_payload = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else payload
+        log.info(f"LUXOR POST payload: {log_payload}")
         r = await session.post(
             url,
             data=payload,
@@ -46,7 +48,11 @@ async def send_post_request(
         # CGH Todo remove code accounting for lack of aws gateway
         if r.ok is False:
             try:
-                res = await r.json()
+                error_text = await r.text()
+                log.error(
+                    f"Luxor request failed status={r.status} url={url} body={error_text}"
+                )
+                res = json.loads(error_text) if error_text else {}
                 await cleanup_response(r, session)
                 if "error" in res:
                     raise HTTPException(status_code=r.status, detail=res["error"])
