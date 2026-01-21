@@ -163,25 +163,28 @@ def _extract_luxor_payload(payload: dict) -> dict:
 
 def _build_luxor_files(payload: dict) -> list:
     files = []
+    seen_urls = set()
     image_url = payload.get("image_url")
     image_urls = payload.get("image_urls")
-    if isinstance(image_url, str) and image_url:
+
+    def add_image_url(url: str) -> None:
+        if url in seen_urls:
+            return
+        seen_urls.add(url)
         files.append(
             {
                 "type": "image",
-                "url": image_url,
+                "url": url,
             }
         )
+
+    if isinstance(image_url, str) and image_url:
+        add_image_url(image_url)
 
     if isinstance(image_urls, list):
         for url in image_urls:
             if isinstance(url, str) and url:
-                files.append(
-                    {
-                        "type": "image",
-                        "url": url,
-                    }
-                )
+                add_image_url(url)
     return files
 
 
