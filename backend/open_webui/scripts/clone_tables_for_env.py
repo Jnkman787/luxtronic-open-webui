@@ -10,10 +10,22 @@ It properly handles:
 - Constraint name suffixes
 - Foreign key references (updated to point to suffixed tables)
 
+After cloning, the script stamps Alembic to a specific cutoff revision
+(LEGACY_CUTOFF_REVISION). Any migrations after this point should use
+get_table_name() and will be applied normally via 'alembic upgrade head'.
+
 Usage:
+    # Step 1: Clone legacy tables
     ENV=dev python -m open_webui.scripts.clone_tables_for_env
-    ENV=staging python -m open_webui.scripts.clone_tables_for_env
+
+    # Step 2: Run remaining migrations to create new tables with suffix
+    ENV=dev alembic upgrade head
 """
+
+# The last migration before get_table_name() was consistently adopted.
+# Tables created by migrations after this revision use get_table_name()
+# and will be created with the correct suffix when running 'alembic upgrade head'.
+LEGACY_CUTOFF_REVISION = "b3a7c2d9e4f1"
 
 import logging
 import re
@@ -192,15 +204,18 @@ def clone_tables():
         conn.commit()
         conn.close()
 
-    # Stamp Alembic to head
-    log.info("Stamping Alembic to head...")
+    # Stamp Alembic to the legacy cutoff revision
+    # Migrations after this point use get_table_name() and should be run normally
+    log.info(f"Stamping Alembic to legacy cutoff revision: {LEGACY_CUTOFF_REVISION}")
     alembic_cfg = Config(OPEN_WEBUI_DIR / "alembic.ini")
     alembic_cfg.set_main_option("script_location", str(OPEN_WEBUI_DIR / "migrations"))
-    command.stamp(alembic_cfg, "head")
+    command.stamp(alembic_cfg, LEGACY_CUTOFF_REVISION)
 
     log.info("")
-    log.info(f"Database setup complete for environment: {ENV}")
-    log.info(f"You can now start the application with ENV={ENV}")
+    log.info(f"Legacy tables cloned for environment: {ENV}")
+    log.info("")
+    log.info("Next step: Run 'alembic upgrade head' to apply remaining migrations:")
+    log.info(f"    ENV={ENV} alembic upgrade head")
 
 
 if __name__ == "__main__":
