@@ -8,7 +8,7 @@ import re
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, Text, JSON, Boolean, func
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.env import SRC_LOG_LEVELS
 
 
@@ -22,7 +22,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Folder(Base):
-    __tablename__ = "folder"
+    __tablename__ = get_table_name("folder")
     id = Column(Text, primary_key=True)
     parent_id = Column(Text, nullable=True)
     user_id = Column(Text)

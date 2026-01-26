@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.utils.access_control import has_access
 
 from pydantic import BaseModel, ConfigDict
@@ -17,7 +17,7 @@ from sqlalchemy.sql import exists
 
 
 class Channel(Base):
-    __tablename__ = "channel"
+    __tablename__ = get_table_name("channel")
 
     id = Column(Text, primary_key=True)
     user_id = Column(Text)

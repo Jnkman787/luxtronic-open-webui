@@ -11,6 +11,9 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from open_webui.internal.db import get_table_name
+from open_webui.migrations.util import get_existing_tables
+
 # revision identifiers, used by Alembic.
 revision: str = "ca81bd47c050"
 down_revision: Union[str, None] = "7e5b5dc7342b"
@@ -19,23 +22,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
-    op.create_table(
-        "config",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("data", sa.JSON(), nullable=False),
-        sa.Column("version", sa.Integer, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(),
-            nullable=True,
-            server_default=sa.func.now(),
-            onupdate=sa.func.now(),
-        ),
-    )
+    existing_tables = set(get_existing_tables())
+    table_name = get_table_name("config")
+
+    if table_name not in existing_tables:
+        op.create_table(
+            table_name,
+            sa.Column("id", sa.Integer, primary_key=True),
+            sa.Column("data", sa.JSON(), nullable=False),
+            sa.Column("version", sa.Integer, nullable=False),
+            sa.Column(
+                "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                nullable=True,
+                server_default=sa.func.now(),
+                onupdate=sa.func.now(),
+            ),
+        )
 
 
 def downgrade():
-    op.drop_table("config")
+    op.drop_table(get_table_name("config"))

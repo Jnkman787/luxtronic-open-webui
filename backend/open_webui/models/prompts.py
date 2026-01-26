@@ -1,7 +1,7 @@
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.groups import Groups
 from open_webui.models.users import Users, UserResponse
 
@@ -16,7 +16,7 @@ from open_webui.utils.access_control import has_access
 
 
 class Prompt(Base):
-    __tablename__ = "prompt"
+    __tablename__ = get_table_name("prompt")
 
     command = Column(String, primary_key=True)
     user_id = Column(String)

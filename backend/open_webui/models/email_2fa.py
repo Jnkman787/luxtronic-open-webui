@@ -9,14 +9,14 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Boolean, Column, Integer, String, Text, Index
 
 from open_webui.env import SRC_LOG_LEVELS, WEBUI_SECRET_KEY
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Email2FAChallenge(Base):
-    __tablename__ = "email_2fa_challenge"
+    __tablename__ = get_table_name("email_2fa_challenge")
 
     id = Column(String(length=36), primary_key=True)
     user_id = Column(String(length=255), nullable=False)

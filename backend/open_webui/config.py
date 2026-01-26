@@ -32,7 +32,7 @@ from open_webui.env import (
     WEBUI_NAME,
     log,
 )
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.utils.redis import get_redis_connection
 
 
@@ -51,7 +51,29 @@ logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # Function to run the alembic migrations
 def run_migrations():
+    from open_webui.internal.db import TABLE_SUFFIX
+
     log.info("Running migrations")
+
+    # For dev/staging environments with table suffixes, check if setup has been done
+    if TABLE_SUFFIX:
+        from sqlalchemy import inspect
+        from open_webui.internal.db import engine
+
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        version_table = f"alembic_version{TABLE_SUFFIX}"
+
+        # If the environment-specific version table doesn't exist,
+        # user needs to run the setup script first
+        if version_table not in existing_tables:
+            log.warning(
+                f"Environment-specific Alembic version table '{version_table}' not found. "
+                f"For {ENV} environment, please run the setup script first: "
+                f"'python -m open_webui.scripts.setup_env_database'"
+            )
+            return
+
     try:
         from alembic import command
         from alembic.config import Config
@@ -71,7 +93,7 @@ run_migrations()
 
 
 class Config(Base):
-    __tablename__ = "config"
+    __tablename__ = get_table_name("config")
 
     id = Column(Integer, primary_key=True)
     data = Column(JSON, nullable=False)
@@ -117,9 +139,15 @@ DEFAULT_CONFIG = {
 
 
 def get_config():
-    with get_db() as db:
-        config_entry = db.query(Config).order_by(Config.id.desc()).first()
-        return config_entry.data if config_entry else DEFAULT_CONFIG
+    try:
+        with get_db() as db:
+            config_entry = db.query(Config).order_by(Config.id.desc()).first()
+            return config_entry.data if config_entry else DEFAULT_CONFIG
+    except Exception as e:
+        # Table might not exist yet for dev/staging environments
+        # that haven't run the setup script
+        log.warning(f"Could not load config from database: {e}")
+        return DEFAULT_CONFIG
 
 
 CONFIG_DATA = get_config()

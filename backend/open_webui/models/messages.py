@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.tags import TagModel, Tag, Tags
 from open_webui.models.users import Users, UserNameResponse
 
@@ -19,7 +19,7 @@ from sqlalchemy.sql import exists
 
 
 class MessageReaction(Base):
-    __tablename__ = "message_reaction"
+    __tablename__ = get_table_name("message_reaction")
     id = Column(Text, primary_key=True)
     user_id = Column(Text)
     message_id = Column(Text)
@@ -38,7 +38,7 @@ class MessageReactionModel(BaseModel):
 
 
 class Message(Base):
-    __tablename__ = "message"
+    __tablename__ = get_table_name("message")
     id = Column(Text, primary_key=True)
 
     user_id = Column(Text)

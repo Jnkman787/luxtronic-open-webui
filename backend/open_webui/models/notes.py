@@ -4,7 +4,7 @@ import uuid
 from typing import Optional
 from functools import lru_cache
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.groups import Groups
 from open_webui.utils.access_control import has_access
 from open_webui.models.users import Users, UserResponse
@@ -21,7 +21,7 @@ from sqlalchemy.sql import exists
 
 
 class Note(Base):
-    __tablename__ = "note"
+    __tablename__ = get_table_name("note")
 
     id = Column(Text, primary_key=True)
     user_id = Column(Text)

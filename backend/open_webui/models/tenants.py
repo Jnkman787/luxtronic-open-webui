@@ -8,13 +8,13 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.config import S3_PROMPT_BUCKET_NAME, DEFAULT_HELP_S3_KEY
 from open_webui.services.s3 import get_s3_client
 
 
 class Tenant(Base):
-    __tablename__ = "tenant"
+    __tablename__ = get_table_name("tenant")
 
     id = Column(String, primary_key=True)
     name = Column(String, unique=True, nullable=False)
