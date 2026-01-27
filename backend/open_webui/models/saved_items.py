@@ -93,7 +93,9 @@ class SavedItemsTable:
                 db.query(SavedItem)
                 .filter(SavedItem.user_id == user_id)
                 .order_by(
-                    SavedItem.display_order.asc().nullslast(),
+                    # MySQL doesn't support NULLS LAST; emulate by sorting nulls after non-nulls.
+                    (SavedItem.display_order == None).asc(),  # noqa: E711
+                    SavedItem.display_order.asc(),
                     SavedItem.created_at.asc()
                 )
                 .all()
