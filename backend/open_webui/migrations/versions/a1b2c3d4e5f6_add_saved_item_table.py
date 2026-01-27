@@ -1,7 +1,7 @@
 """Add saved_item table for My Stuff dashboard
 
 Revision ID: a1b2c3d4e5f6
-Revises: f4b2c9e0d1a7
+Revises: a22d9d209f01
 Create Date: 2026-01-27 00:00:00.000000
 
 """
@@ -16,7 +16,7 @@ from open_webui.migrations.util import get_existing_tables
 
 # revision identifiers, used by Alembic.
 revision: str = "a1b2c3d4e5f6"
-down_revision: Union[str, None] = "f4b2c9e0d1a7"
+down_revision: Union[str, None] = "a22d9d209f01"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
