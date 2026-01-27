@@ -220,3 +220,31 @@ async def get_system_health(tenant_id: str, minutes: int = 30) -> Dict[str, Any]
         "minutes": minutes
     })
     return result
+
+
+async def get_mystuff_chart_data(
+    sql_template: str,
+    timeframe_type: str,
+    timeframe_value: int,
+    series_config: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """
+    Execute a saved SQL template with the provided timeframe and return chart data.
+    Used by My Stuff dashboard to refresh saved charts with different date ranges.
+
+    Args:
+        sql_template: SQL with {start_time} and {end_time} placeholders
+        timeframe_type: 'days' or 'hours'
+        timeframe_value: Number of days or hours
+        series_config: List of {name, color} dicts for series coloring
+
+    Returns:
+        Dict with labels, series (with colors), and optional error
+    """
+    result = await _invoke_rag_platform("dashboard_mystuff_chart_data", {
+        "sql_template": sql_template,
+        "timeframe_type": timeframe_type,
+        "timeframe_value": timeframe_value,
+        "series_config": series_config or []
+    })
+    return result
