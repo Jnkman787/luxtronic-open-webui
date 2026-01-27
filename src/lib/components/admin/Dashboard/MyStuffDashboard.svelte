@@ -349,7 +349,7 @@
 					</div>
 
 					<!-- Card body - chart -->
-					<div class="p-3 min-h-[250px]">
+					<div class="p-3 min-h-[250px] overflow-hidden">
 						{#if isLoading}
 							<div class="flex items-center justify-center h-[200px]">
 								<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#5CC9D3]"></div>

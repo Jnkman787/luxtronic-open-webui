@@ -17,8 +17,8 @@
 	// Chart dimensions
 	const padding = { top: 20, right: 20, bottom: 30, left: 50 };
 
-	$: chartWidth = containerWidth - padding.left - padding.right;
-	$: chartHeight = height - padding.top - padding.bottom;
+	$: chartWidth = Math.max(0, containerWidth - padding.left - padding.right);
+	$: chartHeight = Math.max(0, height - padding.top - padding.bottom);
 
 	// Calculate scales across all series
 	$: allValues = series.flatMap((s) => s.values.filter((v) => v !== null && v !== undefined));
