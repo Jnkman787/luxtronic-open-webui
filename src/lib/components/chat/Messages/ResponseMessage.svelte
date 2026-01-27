@@ -72,6 +72,7 @@
 	import RegenerateMenu from './ResponseMessage/RegenerateMenu.svelte';
 	import StatusHistory from './ResponseMessage/StatusHistory.svelte';
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
+	import AddToMyStuffButton from './AddToMyStuffButton.svelte';
 
 	interface MessageType {
 		id: string;
@@ -122,6 +123,14 @@
 			usage?: unknown;
 		};
 		annotation?: { type: string; rating: number };
+		chart_data?: {
+			type: string;
+			title: string;
+			labels: string[];
+			series: Array<{ name: string; values: number[]; color: string }>;
+			timeframe?: { type: string; value: number };
+			sql_template?: string;
+		};
 	}
 
 	export let chatId = '';
@@ -1075,6 +1084,16 @@
 										</svg>
 									</button>
 								</Tooltip>
+
+								<!-- Add to My Stuff button (only shown when chart_data is present) -->
+								{#if message?.chart_data}
+									<AddToMyStuffButton
+										messageId={message.id}
+										{chatId}
+										chartData={message.chart_data}
+										isVisible={isLastMessage || ($settings?.highContrastMode ?? false)}
+									/>
+								{/if}
 
 								{#if $user?.role === 'admin' || ($user?.permissions?.chat?.tts ?? true)}
 									<Tooltip content={$i18n.t('Read Aloud')} placement="bottom">
