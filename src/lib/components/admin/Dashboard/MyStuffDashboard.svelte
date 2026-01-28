@@ -54,7 +54,6 @@
 			await Promise.all(items.map((item) => loadChartData(item)));
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load saved items';
-			console.error('Failed to load saved items:', e);
 		} finally {
 			loading = false;
 		}
@@ -62,7 +61,6 @@
 
 	async function loadChartData(item: SavedItem) {
 		const itemId = item.id;
-		console.log(`[MY_STUFF] loadChartData called for item ${itemId}: "${item.title}"`);
 
 		chartLoadingStates = { ...chartLoadingStates, [itemId]: true };
 
@@ -71,10 +69,8 @@
 			type: item.timeframe_type,
 			value: item.timeframe_value
 		};
-		console.log(`[MY_STUFF] Using timeframe:`, timeframe);
 
 		try {
-			console.log(`[MY_STUFF] Calling getMyStuffChartData...`);
 			const data = await getMyStuffChartData(
 				token,
 				item.sql_template,
@@ -82,37 +78,28 @@
 				timeframe.value,
 				item.series_config || undefined
 			);
-			console.log(`[MY_STUFF] getMyStuffChartData returned:`, { labels: data.labels?.length, series: data.series?.length, error: data.error });
 
 			if (data.error) {
-				console.warn(`[MY_STUFF] Data has error:`, data.error);
 				chartErrors = { ...chartErrors, [itemId]: data.error };
 			} else {
-				console.log(`[MY_STUFF] Setting chart data in cache for ${itemId}`);
 				chartDataCache = { ...chartDataCache, [itemId]: data };
 				const { [itemId]: _, ...restErrors } = chartErrors;
 				chartErrors = restErrors;
-				console.log(`[MY_STUFF] Cache updated. chartDataCache has ${Object.keys(chartDataCache).length} entries`);
 			}
 		} catch (e) {
 			chartErrors = { ...chartErrors, [itemId]: 'Failed to load chart data' };
-			console.error(`[MY_STUFF] Failed to load chart data for ${itemId}:`, e);
 		} finally {
 			chartLoadingStates = { ...chartLoadingStates, [itemId]: false };
-			console.log(`[MY_STUFF] loadChartData complete for ${itemId}`);
 		}
 	}
 
 	async function handleRefresh(item: SavedItem) {
-		console.log(`[MY_STUFF] handleRefresh called for item ${item.id}`);
 		await loadChartData(item);
 	}
 
 	async function handleTimeframeChange(item: SavedItem, type: string, value: number) {
-		console.log(`[MY_STUFF] handleTimeframeChange called for item ${item.id}: type=${type}, value=${value}`);
 		chartTimeframes = { ...chartTimeframes, [item.id]: { type, value } };
 		await loadChartData(item);
-		console.log(`[MY_STUFF] handleTimeframeChange complete`);
 	}
 
 	async function handleDelete(item: SavedItem) {
@@ -132,7 +119,6 @@
 			toast.success('Chart deleted');
 		} catch (e) {
 			toast.error('Failed to delete chart');
-			console.error('Failed to delete chart:', e);
 		}
 	}
 
@@ -163,7 +149,6 @@
 			toast.success('Title updated');
 		} catch (e) {
 			toast.error('Failed to update title');
-			console.error('Failed to update title:', e);
 		} finally {
 			editingTitleId = null;
 		}
