@@ -13,10 +13,12 @@
 		getSavedItems,
 		deleteSavedItem,
 		updateSavedItem,
+		reorderSavedItems,
 		getMyStuffChartData,
 		type SavedItem,
 		type ChartData
 	} from '$lib/apis/saved-items';
+	import { dndzone } from 'svelte-dnd-action';
 
 	const i18n = getContext('i18n');
 
@@ -25,6 +27,7 @@
 
 	// State
 	let items: SavedItem[] = [];
+	let lastCommittedItems: SavedItem[] = [];
 	let loading = true;
 	let error: string | null = null;
 
@@ -50,6 +53,7 @@
 
 		try {
 			items = await getSavedItems(token);
+			lastCommittedItems = [...items];
 			// Load chart data for all items
 			await Promise.all(items.map((item) => loadChartData(item)));
 		} catch (e) {
@@ -110,6 +114,7 @@
 		try {
 			await deleteSavedItem(token, item.id);
 			items = items.filter((i) => i.id !== item.id);
+			lastCommittedItems = [...items];
 			const { [item.id]: _cache, ...restCache } = chartDataCache;
 			chartDataCache = restCache;
 			const { [item.id]: _timeframe, ...restTimeframes } = chartTimeframes;
@@ -176,6 +181,26 @@
 			value: item.timeframe_value
 		};
 	}
+
+	function handleDndConsider(event: CustomEvent<{ items: SavedItem[] }>) {
+		items = event.detail.items;
+	}
+
+	async function handleDndFinalize(event: CustomEvent<{ items: SavedItem[] }>) {
+		const newItems = event.detail.items;
+		items = newItems;
+
+		try {
+			await reorderSavedItems(
+				token,
+				newItems.map((item) => item.id)
+			);
+			lastCommittedItems = [...newItems];
+		} catch (e) {
+			items = [...lastCommittedItems];
+			toast.error('Failed to reorder charts');
+		}
+	}
 </script>
 
 <div class="my-stuff-dashboard p-4">
@@ -228,10 +253,15 @@
 		</div>
 	{:else}
 		<!-- Chart grid -->
-		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+		<div
+			class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+			use:dndzone={{ items, flipDurationMs: 150 }}
+			on:consider={handleDndConsider}
+			on:finalize={handleDndFinalize}
+		>
 			{#each items as item (item.id)}
 				<div
-					class="chart-card rounded-lg border transition-shadow hover:shadow-md
+					class="chart-card rounded-lg border transition-shadow hover:shadow-md cursor-move
 						{isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}"
 				>
 					<!-- Card header -->
