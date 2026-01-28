@@ -14,7 +14,11 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 # RAG Platform endpoint - configured via environment
-RAG_PLATFORM_URL = os.getenv("RAG_PLATFORM_URL", "http://localhost:9000/2015-03-31/functions/function/invocations")
+RAG_PLATFORM_URL = os.getenv(
+    "RAG_PLATFORM_URL",
+    "http://localhost:9000/2015-03-31/functions/function/invocations",
+)
+RAG_PLATFORM_API_KEY = os.getenv("RAG_MASTER_API_KEY", "")
 
 # The AWS Lambda runtime container only processes one invocation at a time. The
 # local emulator can crash if it receives overlapping requests, so we serialize
@@ -43,10 +47,14 @@ async def _invoke_rag_platform(action: str, params: Dict[str, Any]) -> Dict[str,
         try:
             async with _rag_platform_lock:
                 async with aiohttp.ClientSession() as session:
+                    headers = {"Content-Type": "application/json"}
+                    if RAG_PLATFORM_API_KEY:
+                        headers["x-api-key"] = RAG_PLATFORM_API_KEY
+
                     async with session.post(
                         RAG_PLATFORM_URL,
                         json=payload,
-                        headers={"Content-Type": "application/json"},
+                        headers=headers,
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as response:
                         if response.status != 200:
