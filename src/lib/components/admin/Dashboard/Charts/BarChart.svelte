@@ -36,7 +36,37 @@
 	// Scale functions
 	$: xScale = (index: number) => index * groupWidth + groupWidth / 2;
 	$: yScale = (value: number) => chartHeight - (value / maxValue) * chartHeight;
-	$: barHeight = (value: number) => (value / maxValue) * chartHeight;
+	$: barHeightScale = (value: number) => (value / maxValue) * chartHeight;
+
+	// Reactive bar positions - recomputes when chartWidth changes
+	$: barPositions = labels.map((_, labelIndex) => {
+		return series.map((s, seriesIndex) => {
+			const value = s.values[labelIndex] || 0;
+			if (value <= 0) return null;
+
+			let x: number;
+			if (stacked) {
+				x = xScale(labelIndex) - barWidth / 2;
+			} else {
+				const totalBarsWidth = barWidth * series.length;
+				const startX = xScale(labelIndex) - totalBarsWidth / 2;
+				x = startX + seriesIndex * barWidth;
+			}
+
+			let y: number;
+			if (!stacked) {
+				y = yScale(value);
+			} else {
+				let sum = 0;
+				for (let i = 0; i <= seriesIndex; i++) {
+					sum += series[i].values[labelIndex] || 0;
+				}
+				y = yScale(sum);
+			}
+
+			return { x, y, width: barWidth, height: barHeightScale(value), seriesIndex };
+		});
+	});
 
 	// Y-axis ticks
 	$: yTicks = Array.from({ length: 5 }, (_, i) => {
@@ -69,35 +99,6 @@
 		if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
 		if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
 		return value.toFixed(0);
-	}
-
-	// Get bar position for grouped bars
-	function getBarX(labelIndex: number, seriesIndex: number): number {
-		if (stacked) {
-			return xScale(labelIndex) - barWidth / 2;
-		}
-		const totalBarsWidth = barWidth * series.length;
-		const startX = xScale(labelIndex) - totalBarsWidth / 2;
-		return startX + seriesIndex * barWidth;
-	}
-
-	// Get bar Y position for stacked bars
-	function getBarY(labelIndex: number, seriesIndex: number): number {
-		if (!stacked) {
-			return yScale(series[seriesIndex].values[labelIndex] || 0);
-		}
-		// Sum all values below this series
-		let sum = 0;
-		for (let i = 0; i <= seriesIndex; i++) {
-			sum += series[i].values[labelIndex] || 0;
-		}
-		return yScale(sum);
-	}
-
-	// Get bar height for stacked bars
-	function getBarHeight(labelIndex: number, seriesIndex: number): number {
-		const value = series[seriesIndex].values[labelIndex] || 0;
-		return barHeight(value);
 	}
 
 	onMount(() => {
@@ -187,16 +188,15 @@
 
 			<!-- Bars -->
 			{#if labels.length > 0 && series.length > 0}
-				{#each labels as _, labelIndex}
-					{#each series as s, seriesIndex}
-						{@const value = s.values[labelIndex] || 0}
-						{#if value > 0}
+				{#each barPositions as labelBars, labelIndex}
+					{#each labelBars as bar, seriesIndex}
+						{#if bar}
 							<rect
-								x={getBarX(labelIndex, seriesIndex)}
-								y={getBarY(labelIndex, seriesIndex)}
-								width={barWidth}
-								height={getBarHeight(labelIndex, seriesIndex)}
-								fill="url(#barGradient-{seriesIndex}-{title.replace(/\s+/g, '')})"
+								x={bar.x}
+								y={bar.y}
+								width={bar.width}
+								height={bar.height}
+								fill="url(#barGradient-{bar.seriesIndex}-{title.replace(/\s+/g, '')})"
 								rx="2"
 							/>
 						{/if}

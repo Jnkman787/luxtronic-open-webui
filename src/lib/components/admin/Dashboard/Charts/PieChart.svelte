@@ -50,10 +50,11 @@
 	}
 
 	// Calculate dimensions
+	$: svgWidth = Math.max(0, Math.min(containerWidth, height));
 	$: chartSize = Math.min(containerWidth, height - 40);
 	$: radius = chartSize / 2 - 20;
 	$: innerRadius = donut ? radius * 0.6 : 0;
-	$: centerX = containerWidth / 2;
+	$: centerX = svgWidth / 2;
 	$: centerY = height / 2;
 
 	// Calculate total and percentages
@@ -158,7 +159,7 @@
 	{/if}
 
 	<div class="flex flex-col md:flex-row items-center gap-4">
-		<svg width={Math.min(containerWidth, height)} {height} class="overflow-visible flex-shrink-0">
+		<svg width={svgWidth} {height} class="overflow-visible flex-shrink-0">
 			{#if arcs.length > 0}
 				{#each arcs as arc}
 					<path d={arc.path} fill={arc.color} stroke={isDark ? '#1f2937' : '#ffffff'} stroke-width="2" />

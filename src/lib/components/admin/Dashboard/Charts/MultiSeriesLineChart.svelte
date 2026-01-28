@@ -31,22 +31,19 @@
 	$: xScale = (index: number) => (index / (labels.length - 1 || 1)) * chartWidth;
 	$: yScale = (value: number) => chartHeight - ((value - minValue) / valueRange) * chartHeight;
 
-	// Generate path for each series (skip null/undefined values for gap filling)
-	function generatePath(values: number[]): string {
-		if (values.length === 0) return '';
-
+	// Generate paths reactively - must be a reactive statement to respond to chartWidth changes
+	$: seriesPaths = series.map((s) => {
+		if (s.values.length === 0) return '';
 		const points: Array<{ x: number; y: number }> = [];
-		for (let i = 0; i < values.length; i++) {
-			const v = values[i];
+		for (let i = 0; i < s.values.length; i++) {
+			const v = s.values[i];
 			if (v !== null && v !== undefined && !isNaN(v)) {
 				points.push({ x: xScale(i), y: yScale(v) });
 			}
 		}
-
 		if (points.length === 0) return '';
-
 		return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-	}
+	});
 
 	// Y-axis ticks
 	$: yTicks = Array.from({ length: 5 }, (_, i) => {
@@ -164,9 +161,8 @@
 
 			<!-- Lines for each series -->
 			{#each series as s, idx}
-				{@const pathD = generatePath(s.values)}
-				{#if pathD}
-					<path d={pathD} fill="none" stroke={s.color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+				{#if seriesPaths[idx]}
+					<path d={seriesPaths[idx]} fill="none" stroke={s.color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
 				{/if}
 
 				<!-- Dots -->

@@ -30,6 +30,14 @@
 	$: xScale = (index: number) => (index / (labels.length - 1 || 1)) * chartWidth;
 	$: yScale = (value: number) => chartHeight - ((value - minValue) / valueRange) * chartHeight;
 
+	// Reactive point positions - recomputes when chartWidth changes
+	$: pointPositions = series.map((s) => {
+		return s.values.map((value, i) => {
+			if (value === null || value === undefined || isNaN(value)) return null;
+			return { cx: xScale(i), cy: yScale(value) };
+		});
+	});
+
 	// Y-axis ticks
 	$: yTicks = Array.from({ length: 5 }, (_, i) => {
 		const value = minValue + (valueRange * (4 - i)) / 4;
@@ -138,12 +146,12 @@
 			{/each}
 
 			<!-- Scatter points for each series -->
-			{#each series as s}
-				{#each s.values as value, i}
-					{#if value !== null && value !== undefined && !isNaN(value)}
+			{#each series as s, seriesIdx}
+				{#each pointPositions[seriesIdx] as point, i}
+					{#if point}
 						<circle
-							cx={xScale(i)}
-							cy={yScale(value)}
+							cx={point.cx}
+							cy={point.cy}
 							r={dotSize}
 							fill={s.color}
 							fill-opacity="0.7"
