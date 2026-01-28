@@ -28,13 +28,13 @@
 	let loading = true;
 	let error: string | null = null;
 
-	// Chart data cache: itemId -> chart data
-	let chartDataCache: Map<string, ChartData> = new Map();
-	let chartLoadingStates: Map<string, boolean> = new Map();
-	let chartErrors: Map<string, string> = new Map();
+	// Chart data cache: itemId -> chart data (using objects for Svelte reactivity)
+	let chartDataCache: Record<string, ChartData> = {};
+	let chartLoadingStates: Record<string, boolean> = {};
+	let chartErrors: Record<string, string> = {};
 
 	// Timeframe overrides per chart: itemId -> {type, value}
-	let chartTimeframes: Map<string, { type: string; value: number }> = new Map();
+	let chartTimeframes: Record<string, { type: string; value: number }> = {};
 
 	// Edit state
 	let editingTitleId: string | null = null;
@@ -62,16 +62,19 @@
 
 	async function loadChartData(item: SavedItem) {
 		const itemId = item.id;
-		chartLoadingStates.set(itemId, true);
-		chartLoadingStates = chartLoadingStates;
+		console.log(`[MY_STUFF] loadChartData called for item ${itemId}: "${item.title}"`);
+
+		chartLoadingStates = { ...chartLoadingStates, [itemId]: true };
 
 		// Get timeframe (use override or original)
-		const timeframe = chartTimeframes.get(itemId) || {
+		const timeframe = chartTimeframes[itemId] || {
 			type: item.timeframe_type,
 			value: item.timeframe_value
 		};
+		console.log(`[MY_STUFF] Using timeframe:`, timeframe);
 
 		try {
+			console.log(`[MY_STUFF] Calling getMyStuffChartData...`);
 			const data = await getMyStuffChartData(
 				token,
 				item.sql_template,
@@ -79,34 +82,37 @@
 				timeframe.value,
 				item.series_config || undefined
 			);
+			console.log(`[MY_STUFF] getMyStuffChartData returned:`, { labels: data.labels?.length, series: data.series?.length, error: data.error });
 
 			if (data.error) {
-				chartErrors.set(itemId, data.error);
-				chartErrors = chartErrors;
+				console.warn(`[MY_STUFF] Data has error:`, data.error);
+				chartErrors = { ...chartErrors, [itemId]: data.error };
 			} else {
-				chartDataCache.set(itemId, data);
-				chartDataCache = chartDataCache;
-				chartErrors.delete(itemId);
-				chartErrors = chartErrors;
+				console.log(`[MY_STUFF] Setting chart data in cache for ${itemId}`);
+				chartDataCache = { ...chartDataCache, [itemId]: data };
+				const { [itemId]: _, ...restErrors } = chartErrors;
+				chartErrors = restErrors;
+				console.log(`[MY_STUFF] Cache updated. chartDataCache has ${Object.keys(chartDataCache).length} entries`);
 			}
 		} catch (e) {
-			chartErrors.set(itemId, 'Failed to load chart data');
-			chartErrors = chartErrors;
-			console.error(`Failed to load chart data for ${itemId}:`, e);
+			chartErrors = { ...chartErrors, [itemId]: 'Failed to load chart data' };
+			console.error(`[MY_STUFF] Failed to load chart data for ${itemId}:`, e);
 		} finally {
-			chartLoadingStates.set(itemId, false);
-			chartLoadingStates = chartLoadingStates;
+			chartLoadingStates = { ...chartLoadingStates, [itemId]: false };
+			console.log(`[MY_STUFF] loadChartData complete for ${itemId}`);
 		}
 	}
 
 	async function handleRefresh(item: SavedItem) {
+		console.log(`[MY_STUFF] handleRefresh called for item ${item.id}`);
 		await loadChartData(item);
 	}
 
 	async function handleTimeframeChange(item: SavedItem, type: string, value: number) {
-		chartTimeframes.set(item.id, { type, value });
-		chartTimeframes = chartTimeframes;
+		console.log(`[MY_STUFF] handleTimeframeChange called for item ${item.id}: type=${type}, value=${value}`);
+		chartTimeframes = { ...chartTimeframes, [item.id]: { type, value } };
 		await loadChartData(item);
+		console.log(`[MY_STUFF] handleTimeframeChange complete`);
 	}
 
 	async function handleDelete(item: SavedItem) {
@@ -117,9 +123,12 @@
 		try {
 			await deleteSavedItem(token, item.id);
 			items = items.filter((i) => i.id !== item.id);
-			chartDataCache.delete(item.id);
-			chartTimeframes.delete(item.id);
-			chartErrors.delete(item.id);
+			const { [item.id]: _cache, ...restCache } = chartDataCache;
+			chartDataCache = restCache;
+			const { [item.id]: _timeframe, ...restTimeframes } = chartTimeframes;
+			chartTimeframes = restTimeframes;
+			const { [item.id]: _error, ...restErrors } = chartErrors;
+			chartErrors = restErrors;
 			toast.success('Chart deleted');
 		} catch (e) {
 			toast.error('Failed to delete chart');
@@ -170,7 +179,7 @@
 	}
 
 	function getTimeframe(item: SavedItem): { type: 'days' | 'hours'; value: number } {
-		const override = chartTimeframes.get(item.id);
+		const override = chartTimeframes[item.id];
 		if (override) {
 			return {
 				type: override.type as 'days' | 'hours',
@@ -236,11 +245,6 @@
 		<!-- Chart grid -->
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 			{#each items as item (item.id)}
-				{@const chartData = chartDataCache.get(item.id)}
-				{@const isLoading = chartLoadingStates.get(item.id)}
-				{@const chartError = chartErrors.get(item.id)}
-				{@const timeframe = getTimeframe(item)}
-
 				<div
 					class="chart-card rounded-lg border transition-shadow hover:shadow-md
 						{isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}"
@@ -285,10 +289,10 @@
 						<div class="flex items-center gap-2">
 							<!-- Timeframe dropdown -->
 							<TimeframeDropdown
-								type={timeframe.type}
-								value={timeframe.value}
+								type={getTimeframe(item).type}
+								value={getTimeframe(item).value}
 								{isDark}
-								disabled={isLoading}
+								disabled={chartLoadingStates[item.id]}
 								on:change={(e) => handleTimeframeChange(item, e.detail.type, e.detail.value)}
 							/>
 
@@ -299,8 +303,8 @@
 										{isDark
 										? 'hover:bg-gray-700 text-gray-400 hover:text-white'
 										: 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}
-										{isLoading ? 'animate-spin' : ''}"
-									disabled={isLoading}
+										{chartLoadingStates[item.id] ? 'animate-spin' : ''}"
+									disabled={chartLoadingStates[item.id]}
 									on:click={() => handleRefresh(item)}
 								>
 									<svg
@@ -350,11 +354,11 @@
 
 					<!-- Card body - chart -->
 					<div class="p-3 min-h-[250px] overflow-hidden">
-						{#if isLoading}
+						{#if chartLoadingStates[item.id]}
 							<div class="flex items-center justify-center h-[200px]">
 								<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#5CC9D3]"></div>
 							</div>
-						{:else if chartError}
+						{:else if chartErrors[item.id]}
 							<div class="flex flex-col items-center justify-center h-[200px] text-center">
 								<svg
 									class="h-8 w-8 {isDark ? 'text-red-400' : 'text-red-500'} mb-2"
@@ -379,13 +383,13 @@
 									Try again
 								</button>
 							</div>
-						{:else if chartData}
+						{:else if chartDataCache[item.id]}
 							<ChartRenderer
 								chartData={{
 									type: getChartType(item),
 									title: '',
-									labels: chartData.labels,
-									series: chartData.series
+									labels: chartDataCache[item.id].labels,
+									series: chartDataCache[item.id].series
 								}}
 								{isDark}
 								height={220}
