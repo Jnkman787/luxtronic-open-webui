@@ -1533,7 +1533,7 @@ $: if ($user?.role === 'admin') {
 	};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, files, selected_model_id, error, usage } = data;
+		const { id, done, choices, content, sources, files, selected_model_id, error, usage, weave_call_id } = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
@@ -1628,6 +1628,10 @@ $: if ($user?.role === 'admin') {
 
 		if (usage) {
 			message.usage = usage;
+		}
+
+		if (weave_call_id) {
+			message.weaveCallId = weave_call_id;
 		}
 
 		history.messages[message.id] = message;
@@ -2363,11 +2367,15 @@ $: if ($user?.role === 'admin') {
 				generationController = controller;
 				const textStream = await createOpenAITextStream(res.body, $settings.splitLargeChunks);
 				for await (const update of textStream) {
-					const { value, done, sources, error, usage } = update;
+					const { value, done, sources, error, usage, weaveCallId } = update;
 					if (error || done) {
 						generating = false;
 						generationController = null;
 						break;
+					}
+
+					if (weaveCallId) {
+						message.weaveCallId = weaveCallId;
 					}
 
 					if (mergedResponse.content == '' && value == '\n') {

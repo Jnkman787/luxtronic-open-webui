@@ -11,25 +11,40 @@ from open_webui.env import (
     AIOHTTP_CLIENT_SESSION_SSL,
     AIOHTTP_CLIENT_TIMEOUT,
 )
+from open_webui.models.users import UserModel
+from open_webui.utils.payload import _build_user_jwt_token
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
-async def rag_master_request(form_data: dict):
+async def rag_master_request(form_data: dict, user: Optional[UserModel] = None):
     url = os.environ['LIVE_URL']
     return await send_post_request(
         url=url,
         payload=json.dumps(form_data),
+        user=user,
     )
 
 # CGH TODO Support Streaming
 async def send_post_request(
         url: str,
         payload: Union[str, bytes],
+        user: Optional[UserModel] = None,
 ):
     r = None
     try:
+        # Ensure jwt_token is present in the payload if user is provided
+        if user:
+            try:
+                payload_str = payload.decode("utf-8") if isinstance(payload, bytes) else payload
+                payload_dict = json.loads(payload_str)
+                if "jwt_token" not in payload_dict:
+                    payload_dict["jwt_token"] = _build_user_jwt_token(user)
+                    payload = json.dumps(payload_dict)
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                log.warning(f"Could not inject jwt_token into payload: {e}")
+
         session = aiohttp.ClientSession(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
         )

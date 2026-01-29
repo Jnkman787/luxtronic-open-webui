@@ -571,7 +571,8 @@
 				model_id: message.model,
 				message_id: message.id,
 				message_index: messages.length,
-				chat_id: chatId
+				chat_id: chatId,
+				...(message?.weaveCallId ? { weave_call_id: message.weaveCallId } : {})
 			},
 			snapshot: {
 				chat: chat

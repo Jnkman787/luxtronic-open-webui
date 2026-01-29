@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
@@ -12,8 +13,31 @@ from open_webui.models.feedbacks import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.routers.luxor import rag_master_request
+from open_webui.env import SRC_LOG_LEVELS
+
+log = logging.getLogger(__name__)
+log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 router = APIRouter()
+
+
+async def _send_feedback_to_weave(form_data: FeedbackForm, user: UserModel) -> None:
+    """
+    Send feedback to RAG master for Weave integration.
+    Transforms the feedback payload: type -> task, rating -> feedback
+    """
+    try:
+        payload = {
+            "task": "feedback",
+            "data": form_data.data.model_dump() if form_data.data else {},
+            "meta": form_data.meta or {},
+            "snapshot": form_data.snapshot.model_dump() if form_data.snapshot else {},
+        }
+        await rag_master_request(payload, user=user)
+    except Exception as e:
+        # Log but don't fail the feedback creation - Weave integration is secondary
+        log.warning(f"Failed to send feedback to Weave: {e}")
 
 
 ############################
@@ -124,6 +148,9 @@ async def create_feedback(
             detail=ERROR_MESSAGES.DEFAULT(),
         )
 
+    # Send feedback to Weave (non-blocking, failures logged but not raised)
+    await _send_feedback_to_weave(form_data, user)
+
     return feedback
 
 
@@ -157,6 +184,9 @@ async def update_feedback_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.NOT_FOUND
         )
+
+    # Send updated feedback to Weave (non-blocking, failures logged but not raised)
+    await _send_feedback_to_weave(form_data, user)
 
     return feedback
 

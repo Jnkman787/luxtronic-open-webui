@@ -10,6 +10,7 @@ type TextStreamUpdate = {
 	selectedModelId?: any;
 	error?: any;
 	usage?: ResponseUsage;
+	weaveCallId?: string;
 };
 
 type ResponseUsage = {
@@ -82,6 +83,11 @@ async function* openAIStreamToIterator(
 				continue;
 			}
 
+			if (parsedData.weave_call_id) {
+				yield { done: false, value: '', weaveCallId: parsedData.weave_call_id };
+				continue;
+			}
+
 			yield {
 				done: false,
 				value: parsedData.choices?.[0]?.delta?.content ?? ''
@@ -116,6 +122,10 @@ async function* streamLargeDeltasAsRandomChunks(
 			continue;
 		}
 		if (textStreamUpdate.usage) {
+			yield textStreamUpdate;
+			continue;
+		}
+		if (textStreamUpdate.weaveCallId) {
 			yield textStreamUpdate;
 			continue;
 		}
