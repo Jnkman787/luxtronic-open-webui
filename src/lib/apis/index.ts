@@ -738,7 +738,8 @@ export const generateTags = async (
 	token: string = '',
 	model: string,
 	messages: string,
-	chat_id?: string
+	chat_id?: string,
+	luxor_tenant_id?: string
 ) => {
 	let error = null;
 
@@ -752,7 +753,8 @@ export const generateTags = async (
 		body: JSON.stringify({
 			model: model,
 			messages: messages,
-			...(chat_id && { chat_id: chat_id })
+			...(chat_id && { chat_id: chat_id }),
+			...(luxor_tenant_id && { luxor_tenant_id: luxor_tenant_id })
 		})
 	})
 		.then(async (res) => {

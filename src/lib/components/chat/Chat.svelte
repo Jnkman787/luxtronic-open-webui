@@ -1849,7 +1849,9 @@ $: if ($user?.role === 'admin') {
 					model: model.id,
 					modelName: model.name ?? model.id,
 					modelIdx: modelIdx ? modelIdx : _modelIdx,
-					timestamp: Math.floor(Date.now() / 1000) // Unix epoch
+					timestamp: Math.floor(Date.now() / 1000), // Unix epoch
+					// Store tenant context for admin users (used for Weave feedback)
+					...($user?.role === 'admin' && selectedTenantId ? { luxorTenantId: selectedTenantId } : {})
 				};
 
 				// Add message to history and Set currentId to messageId
