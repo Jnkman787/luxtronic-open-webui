@@ -17,7 +17,12 @@ log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
 
 async def rag_master_request(form_data: dict):
-    url = os.environ['LIVE_URL']
+    url = os.environ.get("RAG_PLATFORM_URL")
+    if not url:
+        raise HTTPException(
+            status_code=500,
+            detail="Missing RAG_PLATFORM_URL environment variable",
+        )
     return await send_post_request(
         url=url,
         payload=json.dumps(form_data),

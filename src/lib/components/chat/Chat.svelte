@@ -510,6 +510,8 @@ $: if ($user?.role === 'admin') {
 					message.embeds = data.embeds;
 				} else if (type === 'chat:message:error') {
 					message.error = data.error;
+				} else if (type === 'chat:message:chart_data') {
+					message.chart_data = data.chart_data;
 				} else if (type === 'chat:message:follow_ups') {
 					message.followUps = data.follow_ups;
 

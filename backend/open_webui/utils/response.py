@@ -323,6 +323,11 @@ def convert_response_luxor_to_openai(luxor_response: dict)  -> dict:
     if sources:
         response["sources"] = sources
 
+    # Include chart_data if present in the RAG response
+    chart_data = payload.get("chart_data")
+    if chart_data:
+        response["chart_data"] = chart_data
+
     return response
 
 
