@@ -95,7 +95,7 @@ from open_webui.routers import (
     uploads,
     tenants,
     scim,
-    rmmc_dashboard,
+    dashboard,
     saved_items,
 )
 
@@ -1375,7 +1375,7 @@ app.include_router(auths.router, prefix="/api/v1/auths", tags=["auths"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(tenants.router, prefix="/api/v1/tenants", tags=["tenants"])
 app.include_router(
-    rmmc_dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"]
+    dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"]
 )
 
 

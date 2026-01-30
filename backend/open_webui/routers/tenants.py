@@ -33,6 +33,7 @@ class TenantInfo(BaseModel):
     id: str
     name: str
     s3_bucket: str
+    tenant_group_name: Optional[str] = None
     table_name: Optional[str] = None
     system_config_client_name: Optional[str] = None
     logo_image_url: Optional[str] = None
