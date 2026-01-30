@@ -244,15 +244,31 @@ async def get_mystuff_chart_data(
         sql_template: SQL with {start_time} and {end_time} placeholders
         timeframe_type: 'days' or 'hours'
         timeframe_value: Number of days or hours
-        series_config: List of {name, color} dicts for series coloring
+        series_config: List of {column, name, color} dicts where:
+            - column: original SQL column name (used for matching)
+            - name: display name (user-editable)
+            - color: series color
 
     Returns:
         Dict with labels, series (with colors), and optional error
     """
-    result = await _invoke_rag_platform("dashboard_mystuff_chart_data", {
+    payload = {
         "sql_template": sql_template,
         "timeframe_type": timeframe_type,
         "timeframe_value": timeframe_value,
         "series_config": series_config or []
-    })
+    }
+    result = await _invoke_rag_platform("dashboard_mystuff_chart_data", payload)
+
+    # Apply series_config mapping since RAG doesn't handle it
+    # Match by column name and apply custom name/color
+    if series_config and result.get('series'):
+        config_by_column = {c.get('column'): c for c in series_config if c.get('column')}
+        for series in result['series']:
+            original_name = series.get('name')
+            if original_name in config_by_column:
+                config = config_by_column[original_name]
+                series['name'] = config.get('name', original_name)
+                series['color'] = config.get('color', series.get('color'))
+
     return result

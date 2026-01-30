@@ -128,7 +128,7 @@ async def update_saved_item(
     user=Depends(get_verified_user)
 ):
     """
-    Update a saved item's title or display_order.
+    Update a saved item's title, display_order, or series_config.
     """
     item = SavedItems.update_item(item_id, user.id, form_data)
     if not item:

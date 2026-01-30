@@ -74,6 +74,7 @@ class SavedItemCreateForm(BaseModel):
 class SavedItemUpdateForm(BaseModel):
     title: Optional[str] = None
     display_order: Optional[int] = None
+    series_config: Optional[List[dict]] = None
 
 
 class ReorderItemsForm(BaseModel):
@@ -166,6 +167,8 @@ class SavedItemsTable:
                 item.title = form_data.title
             if form_data.display_order is not None:
                 item.display_order = form_data.display_order
+            if form_data.series_config is not None:
+                item.series_config = form_data.series_config
 
             item.updated_at = int(time.time_ns())
             db.commit()

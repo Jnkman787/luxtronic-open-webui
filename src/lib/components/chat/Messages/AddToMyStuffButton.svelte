@@ -54,7 +54,7 @@
 				type: chartData.type || 'line',
 				title: chartData.title || 'Saved Chart',
 				sql_template: chartData.sql_template || '',
-				series_config: chartData.series?.map((s) => ({ name: s.name, color: s.color })),
+				series_config: chartData.series?.map((s) => ({ column: s.name, name: s.name, color: s.color })),
 				timeframe_type: chartData.timeframe?.type || 'days',
 				timeframe_value: chartData.timeframe?.value || 7
 			});

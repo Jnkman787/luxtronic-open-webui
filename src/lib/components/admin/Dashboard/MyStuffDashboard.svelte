@@ -16,7 +16,8 @@
 		reorderSavedItems,
 		getMyStuffChartData,
 		type SavedItem,
-		type ChartData
+		type ChartData,
+		type SeriesConfig
 	} from '$lib/apis/saved-items';
 	import { dndzone } from 'svelte-dnd-action';
 
@@ -42,6 +43,10 @@
 	// Edit state
 	let editingTitleId: string | null = null;
 	let editingTitleValue: string = '';
+
+	// Series config edit state
+	let editingSeriesId: string | null = null;
+	let editingSeriesConfig: SeriesConfig[] = [];
 
 	onMount(async () => {
 		await loadItems();
@@ -162,6 +167,65 @@
 	function cancelEditingTitle() {
 		editingTitleId = null;
 		editingTitleValue = '';
+	}
+
+	function startEditingSeries(item: SavedItem) {
+		// Initialize from saved config or chart data
+		const chartData = chartDataCache[item.id];
+
+		if (item.series_config && item.series_config.length > 0) {
+			// Use saved config, ensure column field exists
+			editingSeriesConfig = item.series_config.map((s, i) => ({
+				column: s.column || s.name,  // Fallback for old configs without column
+				name: s.name,
+				color: s.color || chartData?.series?.[i]?.color || '#5CC9D3'
+			}));
+		} else if (chartData?.series) {
+			// Initialize from chart data (first time editing)
+			editingSeriesConfig = chartData.series.map((s) => ({
+				column: s.name,  // Original column name
+				name: s.name,    // Display name (starts same as column)
+				color: s.color
+			}));
+		} else {
+			editingSeriesConfig = [];
+		}
+		editingSeriesId = item.id;
+	}
+
+	async function saveSeriesConfig(item: SavedItem) {
+		if (editingSeriesConfig.length === 0) {
+			editingSeriesId = null;
+			return;
+		}
+
+		try {
+			const updated = await updateSavedItem(token, item.id, { series_config: editingSeriesConfig });
+			const idx = items.findIndex((i) => i.id === item.id);
+			if (idx !== -1) {
+				items[idx] = updated;
+				items = items;
+			}
+			toast.success('Series names updated');
+			// Reload chart data to reflect new names
+			await loadChartData(updated);
+		} catch (e) {
+			toast.error('Failed to update series names');
+		} finally {
+			editingSeriesId = null;
+			editingSeriesConfig = [];
+		}
+	}
+
+	function cancelEditingSeries() {
+		editingSeriesId = null;
+		editingSeriesConfig = [];
+	}
+
+	function updateSeriesName(index: number, name: string) {
+		editingSeriesConfig = editingSeriesConfig.map((s, i) =>
+			i === index ? { ...s, name } : s
+		);
 	}
 
 	function getChartType(item: SavedItem): 'line' | 'bar' | 'pie' | 'scatter' {
@@ -311,6 +375,39 @@
 								on:change={(e) => handleTimeframeChange(item, e.detail.type, e.detail.value)}
 							/>
 
+							<!-- Edit series names button -->
+							<Tooltip content="Edit series names" placement="bottom">
+								<button
+									class="p-1.5 rounded transition-colors
+										{isDark
+										? 'hover:bg-gray-700 text-gray-400 hover:text-white'
+										: 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}
+										{editingSeriesId === item.id ? 'bg-[#5CC9D3]/20 text-[#5CC9D3]' : ''}"
+									disabled={chartLoadingStates[item.id] || !chartDataCache[item.id]?.series?.length}
+									on:click={() => editingSeriesId === item.id ? cancelEditingSeries() : startEditingSeries(item)}
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke-width="2"
+										stroke="currentColor"
+										class="w-4 h-4"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"
+										/>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+										/>
+									</svg>
+								</button>
+							</Tooltip>
+
 							<!-- Refresh button -->
 							<Tooltip content="Refresh" placement="bottom">
 								<button
@@ -366,6 +463,55 @@
 							</Tooltip>
 						</div>
 					</div>
+
+					<!-- Series config editor -->
+					{#if editingSeriesId === item.id}
+						<div
+							class="p-3 border-b {isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-100 bg-gray-50'}"
+						>
+							<div class="text-xs font-medium mb-2 {isDark ? 'text-gray-400' : 'text-gray-500'}">
+								Edit Series Names
+							</div>
+							<div class="space-y-2">
+								{#each editingSeriesConfig as series, index}
+									<div class="flex items-center gap-2">
+										<div
+											class="w-3 h-3 rounded-full flex-shrink-0"
+											style="background-color: {series.color}"
+										></div>
+										<input
+											type="text"
+											value={series.name}
+											on:input={(e) => updateSeriesName(index, e.currentTarget.value)}
+											class="flex-1 text-sm px-2 py-1 rounded border
+												{isDark
+												? 'bg-gray-700 border-gray-600 text-white'
+												: 'bg-white border-gray-300 text-gray-900'}
+												focus:outline-none focus:ring-1 focus:ring-[#5CC9D3]"
+											placeholder="Series name"
+										/>
+									</div>
+								{/each}
+							</div>
+							<div class="flex justify-end gap-2 mt-3">
+								<button
+									class="px-3 py-1 text-xs font-medium rounded
+										{isDark
+										? 'text-gray-400 hover:text-white hover:bg-gray-700'
+										: 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}"
+									on:click={cancelEditingSeries}
+								>
+									Cancel
+								</button>
+								<button
+									class="px-3 py-1 text-xs font-medium rounded bg-[#5CC9D3] text-white hover:bg-[#4bb9c3]"
+									on:click={() => saveSeriesConfig(item)}
+								>
+									Save
+								</button>
+							</div>
+						</div>
+					{/if}
 
 					<!-- Card body - chart -->
 					<div class="p-3 min-h-[250px] overflow-hidden">

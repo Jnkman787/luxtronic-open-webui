@@ -10,7 +10,8 @@ import { WEBUI_API_BASE_URL } from '$lib/constants';
 // =============================================================================
 
 export type SeriesConfig = {
-	name: string;
+	column: string;  // Original column name from SQL (used for matching)
+	name: string;    // Display name (editable by user)
 	color: string;
 };
 
@@ -44,6 +45,7 @@ export type SavedItemCreate = {
 export type SavedItemUpdate = {
 	title?: string;
 	display_order?: number;
+	series_config?: SeriesConfig[];
 };
 
 export type ChartSeries = {
