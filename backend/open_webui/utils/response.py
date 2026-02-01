@@ -323,10 +323,16 @@ def convert_response_luxor_to_openai(luxor_response: dict)  -> dict:
     if sources:
         response["sources"] = sources
 
+
     # Capture weave_call_id for feedback integration
     weave_call_id = luxor_response.get("weave_call_id")
     if weave_call_id:
         response["weave_call_id"] = weave_call_id
+
+    # Include chart_data if present in the RAG response
+    chart_data = payload.get("chart_data")
+    if chart_data:
+        response["chart_data"] = chart_data
 
     return response
 

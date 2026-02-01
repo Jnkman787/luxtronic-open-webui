@@ -410,3 +410,63 @@ async def get_system_health(
     except Exception as e:
         logger.error(f"Failed to get system health for {tenant_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+############################
+# My Stuff Chart Data
+############################
+
+from pydantic import BaseModel
+from typing import List, Dict, Any
+
+class MyStuffChartDataRequest(BaseModel):
+    sql_template: str
+    timeframe_type: str  # 'days' or 'hours'
+    timeframe_value: int
+    series_config: Optional[List[Dict[str, Any]]] = None
+
+class ChartSeries(BaseModel):
+    name: str
+    values: List[float]
+    color: str
+
+class MyStuffChartDataResponse(BaseModel):
+    labels: List[str]
+    series: List[ChartSeries]
+    error: Optional[str] = None
+
+
+@router.post("/my-stuff/chart-data", response_model=MyStuffChartDataResponse)
+async def get_mystuff_chart_data(
+    request: MyStuffChartDataRequest,
+    user=Depends(get_verified_user)
+):
+    """
+    Execute a saved SQL template and return chart data for My Stuff dashboard.
+    This allows refreshing saved charts with different date ranges.
+    """
+    try:
+        result = await timestream.get_mystuff_chart_data(
+            sql_template=request.sql_template,
+            timeframe_type=request.timeframe_type,
+            timeframe_value=request.timeframe_value,
+            series_config=request.series_config
+        )
+        if result.get("error"):
+            return MyStuffChartDataResponse(
+                labels=[],
+                series=[],
+                error=result["error"]
+            )
+        return MyStuffChartDataResponse(
+            labels=result.get("labels", []),
+            series=[ChartSeries(**s) for s in result.get("series", [])],
+            error=None
+        )
+    except Exception as e:
+        logger.error(f"Failed to get my-stuff chart data: {e}")
+        return MyStuffChartDataResponse(
+            labels=[],
+            series=[],
+            error="Failed to load chart data"
+        )

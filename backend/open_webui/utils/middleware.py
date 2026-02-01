@@ -1869,6 +1869,15 @@ async def process_chat_response(
                                 },
                             )
 
+                            # Emit chart_data event if present (for My Stuff feature)
+                            if response_data.get("chart_data"):
+                                await event_emitter(
+                                    {
+                                        "type": "chat:message:chart_data",
+                                        "data": {"chart_data": response_data["chart_data"]},
+                                    }
+                                )
+
                             # Send a webhook notification if the user is not active
                             if not get_active_status_by_user_id(user.id):
                                 webhook_url = Users.get_user_webhook_url_by_id(user.id)

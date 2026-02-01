@@ -14,7 +14,11 @@ from typing import Optional, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 # RAG Platform endpoint - configured via environment
-RAG_PLATFORM_URL = os.getenv("RAG_PLATFORM_URL", "http://localhost:9000/2015-03-31/functions/function/invocations")
+RAG_PLATFORM_URL = os.getenv(
+    "RAG_PLATFORM_URL",
+    "http://localhost:9000/2015-03-31/functions/function/invocations",
+)
+RAG_PLATFORM_API_KEY = os.getenv("RAG_MASTER_API_KEY", "")
 
 # The AWS Lambda runtime container only processes one invocation at a time. The
 # local emulator can crash if it receives overlapping requests, so we serialize
@@ -43,10 +47,14 @@ async def _invoke_rag_platform(action: str, params: Dict[str, Any]) -> Dict[str,
         try:
             async with _rag_platform_lock:
                 async with aiohttp.ClientSession() as session:
+                    headers = {"Content-Type": "application/json"}
+                    if RAG_PLATFORM_API_KEY:
+                        headers["x-api-key"] = RAG_PLATFORM_API_KEY
+
                     async with session.post(
                         RAG_PLATFORM_URL,
                         json=payload,
-                        headers={"Content-Type": "application/json"},
+                        headers=headers,
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as response:
                         if response.status != 200:
@@ -219,4 +227,48 @@ async def get_system_health(tenant_id: str, minutes: int = 30) -> Dict[str, Any]
         "tenant_id": tenant_id,
         "minutes": minutes
     })
+    return result
+
+
+async def get_mystuff_chart_data(
+    sql_template: str,
+    timeframe_type: str,
+    timeframe_value: int,
+    series_config: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """
+    Execute a saved SQL template with the provided timeframe and return chart data.
+    Used by My Stuff dashboard to refresh saved charts with different date ranges.
+
+    Args:
+        sql_template: SQL with {start_time} and {end_time} placeholders
+        timeframe_type: 'days' or 'hours'
+        timeframe_value: Number of days or hours
+        series_config: List of {column, name, color} dicts where:
+            - column: original SQL column name (used for matching)
+            - name: display name (user-editable)
+            - color: series color
+
+    Returns:
+        Dict with labels, series (with colors), and optional error
+    """
+    payload = {
+        "sql_template": sql_template,
+        "timeframe_type": timeframe_type,
+        "timeframe_value": timeframe_value,
+        "series_config": series_config or []
+    }
+    result = await _invoke_rag_platform("dashboard_mystuff_chart_data", payload)
+
+    # Apply series_config mapping since RAG doesn't handle it
+    # Match by column name and apply custom name/color
+    if series_config and result.get('series'):
+        config_by_column = {c.get('column'): c for c in series_config if c.get('column')}
+        for series in result['series']:
+            original_name = series.get('name')
+            if original_name in config_by_column:
+                config = config_by_column[original_name]
+                series['name'] = config.get('name', original_name)
+                series['color'] = config.get('color', series.get('color'))
+
     return result

@@ -72,6 +72,8 @@
 	import RegenerateMenu from './ResponseMessage/RegenerateMenu.svelte';
 	import StatusHistory from './ResponseMessage/StatusHistory.svelte';
 	import FullHeightIframe from '$lib/components/common/FullHeightIframe.svelte';
+	import AddToMyStuffButton from './AddToMyStuffButton.svelte';
+	import ChartRenderer from '$lib/components/common/ChartRenderer.svelte';
 
 	interface MessageType {
 		id: string;
@@ -122,6 +124,14 @@
 			usage?: unknown;
 		};
 		annotation?: { type: string; rating: number };
+		chart_data?: {
+			type: string;
+			title: string;
+			labels: string[];
+			series: Array<{ name: string; values: number[]; color: string }>;
+			timeframe?: { type: string; value: number };
+			sql_template?: string;
+		};
 	}
 
 	export let chatId = '';
@@ -853,6 +863,16 @@
 								{#if message.content === '' && !message.error && ((model?.info?.meta?.capabilities?.status_updates ?? true) ? (message?.statusHistory ?? [...(message?.status ? [message?.status] : [])]).length === 0 || (message?.statusHistory?.at(-1)?.hidden ?? false) : true)}
 									<Skeleton />
 								{:else if message.content && message.error !== true}
+									<!-- Interactive chart when chart_data is present -->
+									{#if message.chart_data}
+										<div class="mb-4">
+											<ChartRenderer
+												chartData={message.chart_data}
+												isDark={document.documentElement.classList.contains('dark')}
+												height={300}
+											/>
+										</div>
+									{/if}
 									<!-- always show message contents even if there's an error -->
 									<!-- unless message.error === true which is legacy error handling, where the error message is stored in message.content -->
 									<ContentRenderer
@@ -860,7 +880,7 @@
 										messageId={message.id}
 										{history}
 										{selectedModels}
-										content={message.content}
+										content={message.chart_data ? message.content.replace(/```mermaid[\s\S]*?```\n?/g, '') : message.content}
 										sources={message.sources}
 										floatingButtons={message?.done &&
 											!readOnly &&
@@ -1577,19 +1597,31 @@
 							{/if}
 						{/if}
 						</div>
-						{#if tableTokens.length > 0}
-							<div class="ml-auto flex items-center">
-								<button
-									aria-label={$i18n.t('Export to Excel')}
-									class="{isLastMessage || ($settings?.highContrastMode ?? false)
-										? 'visible'
-										: 'invisible group-hover:visible'} px-2.5 py-1.5 text-xs font-medium border border-gray-700 dark:border-gray-200 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-900 hover:text-white dark:hover:bg-gray-100 dark:hover:text-gray-900 transition"
-									on:click={() => {
-										exportFirstTableToExcel();
-									}}
-								>
-									{$i18n.t('Export to Excel')}
-								</button>
+						{#if tableTokens.length > 0 || message?.chart_data}
+							<div class="ml-auto flex items-center gap-2">
+								{#if tableTokens.length > 0}
+									<button
+										aria-label={$i18n.t('Export to Excel')}
+										class="{isLastMessage || ($settings?.highContrastMode ?? false)
+											? 'visible'
+											: 'invisible group-hover:visible'} px-2.5 py-1.5 text-xs font-medium border border-gray-700 dark:border-gray-200 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-900 hover:text-white dark:hover:bg-gray-100 dark:hover:text-gray-900 transition"
+										on:click={() => {
+											exportFirstTableToExcel();
+										}}
+									>
+										{$i18n.t('Export to Excel')}
+									</button>
+								{/if}
+								{#if message?.chart_data}
+									<AddToMyStuffButton
+										messageId={message.id}
+										{chatId}
+										chartData={message.chart_data}
+										visibilityClass={isLastMessage || ($settings?.highContrastMode ?? false)
+											? 'visible'
+											: 'invisible group-hover:visible'}
+									/>
+								{/if}
 							</div>
 						{/if}
 					</div>
