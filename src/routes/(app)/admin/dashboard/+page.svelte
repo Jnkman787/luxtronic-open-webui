@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-	<title>{$i18n.t('Quality Dashboard')} | Admin</title>
+	<title>{$i18n.t('Dashboards')} | Admin</title>
 </svelte:head>
 
 {#if loaded}

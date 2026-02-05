@@ -17,7 +17,7 @@ import type {
 // =============================================================================
 
 /** Currently selected tenant dashboard ID */
-export const selectedTenantId = writable<string>('rmmc');
+export const selectedTenantId = writable<string>('');
 
 /** Currently selected line within the tenant */
 export const selectedLine = writable<string | null>(null);
@@ -121,7 +121,7 @@ export const dashboardError = writable<string | null>(null);
  * Reset all dashboard state to defaults
  */
 export const resetDashboardState = () => {
-	selectedTenantId.set('rmmc');
+	selectedTenantId.set('');
 	selectedLine.set(null);
 	selectedSystem.set('uvbc');
 	selectedSecondaryOption.set('metrics');
