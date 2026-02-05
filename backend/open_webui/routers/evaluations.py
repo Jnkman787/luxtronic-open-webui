@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
@@ -12,8 +13,61 @@ from open_webui.models.feedbacks import (
 
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.utils.auth import get_admin_user, get_verified_user
+from open_webui.routers.luxor import rag_master_request
+from open_webui.env import SRC_LOG_LEVELS
+
+log = logging.getLogger(__name__)
+log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 router = APIRouter()
+
+
+def _should_send_to_weave(form_data: FeedbackForm) -> bool:
+    """
+    Only send feedback to Weave when user has provided meaningful details
+    (comment or reason), not just the initial thumbs up/down click.
+    """
+    if not form_data.data:
+        return False
+
+    data = form_data.data.model_dump() if hasattr(form_data.data, 'model_dump') else form_data.data
+
+    # Check if there's a comment or reason provided
+    has_comment = bool(data.get("comment"))
+    has_reason = bool(data.get("reason"))
+
+    return has_comment or has_reason
+
+
+async def _send_feedback_to_weave(form_data: FeedbackForm, user: UserModel) -> None:
+    """
+    Send feedback to RAG master for Weave integration.
+    Transforms the feedback payload: type -> task, rating -> feedback
+    Only sends when user has provided meaningful feedback (comment/reason).
+    """
+    # Only send to Weave when there's meaningful feedback content
+    if not _should_send_to_weave(form_data):
+        log.debug("Skipping Weave feedback - no comment or reason provided yet")
+        return
+
+    try:
+        meta = form_data.meta or {}
+        payload = {
+            "task": "feedback",
+            "data": form_data.data.model_dump() if form_data.data else {},
+            "meta": meta,
+            # Skip snapshot to reduce payload size - chat_id is sufficient for reference
+        }
+
+        # Include override_tenant_id if present in meta (for admin users working on other tenants)
+        luxor_tenant_id = meta.get("luxor_tenant_id")
+        if luxor_tenant_id:
+            payload["override_tenant_id"] = luxor_tenant_id
+
+        await rag_master_request(payload, user=user)
+    except Exception as e:
+        # Log but don't fail the feedback creation - Weave integration is secondary
+        log.warning(f"Failed to send feedback to Weave: {e}")
 
 
 ############################
@@ -124,6 +178,9 @@ async def create_feedback(
             detail=ERROR_MESSAGES.DEFAULT(),
         )
 
+    # Send feedback to Weave (non-blocking, failures logged but not raised)
+    await _send_feedback_to_weave(form_data, user)
+
     return feedback
 
 
@@ -157,6 +214,9 @@ async def update_feedback_by_id(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=ERROR_MESSAGES.NOT_FOUND
         )
+
+    # Send updated feedback to Weave (non-blocking, failures logged but not raised)
+    await _send_feedback_to_weave(form_data, user)
 
     return feedback
 

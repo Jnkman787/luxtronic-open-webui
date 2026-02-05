@@ -581,7 +581,9 @@
 				model_id: message.model,
 				message_id: message.id,
 				message_index: messages.length,
-				chat_id: chatId
+				chat_id: chatId,
+				...(message?.weaveCallId ? { weave_call_id: message.weaveCallId } : {}),
+				...(message?.luxorTenantId ? { luxor_tenant_id: message.luxorTenantId } : {})
 			},
 			snapshot: {
 				chat: chat
@@ -632,12 +634,16 @@
 
 			if (!updatedMessage.annotation?.tags && (message?.content ?? '') !== '') {
 				// attempt to generate tags
-				const tags = await generateTags(localStorage.token, message.model, messages, chatId).catch(
-					(error) => {
-						console.error(error);
-						return [];
-					}
-				);
+				const tags = await generateTags(
+					localStorage.token,
+					message.model,
+					messages,
+					chatId,
+					message?.luxorTenantId
+				).catch((error) => {
+					console.error(error);
+					return [];
+				});
 				console.log(tags);
 
 				if (tags) {
