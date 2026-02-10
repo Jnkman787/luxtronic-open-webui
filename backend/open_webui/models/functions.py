@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, JSONField, get_db
+from open_webui.internal.db import Base, JSONField, get_db, get_table_name
 from open_webui.models.users import Users, UserModel
 from open_webui.env import SRC_LOG_LEVELS
 from pydantic import BaseModel, ConfigDict
@@ -17,7 +17,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Function(Base):
-    __tablename__ = "function"
+    __tablename__ = get_table_name("function")
 
     id = Column(String, primary_key=True)
     user_id = Column(String)

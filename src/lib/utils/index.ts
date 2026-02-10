@@ -1777,7 +1777,8 @@ export const renderMermaidDiagram = async (mermaid, code: string) => {
 	const parseResult = await mermaid.parse(code, { suppressErrors: false });
 	if (parseResult) {
 		const { svg } = await mermaid.render(`mermaid-${uuidv4()}`, code);
-		if (/^\s*xychart(-beta)?\b/i.test(code)) {
+		// Match xychart with optional init directives at the start (e.g., %%{init:...}%%)
+		if (/^\s*(?:%%\{[\s\S]*?\}%%\s*)*xychart(-beta)?\b/i.test(code)) {
 			const withLegend = injectXyChartLegend(svg, code);
 			return limitXyChartXAxisLabels(withLegend, code);
 		}

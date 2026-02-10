@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.models.chats import Chats
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -20,7 +20,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Feedback(Base):
-    __tablename__ = "feedback"
+    __tablename__ = get_table_name("feedback")
     id = Column(Text, primary_key=True)
     user_id = Column(Text)
     version = Column(BigInteger, default=0)

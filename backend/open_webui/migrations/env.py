@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from open_webui.models.auths import Auth
 from open_webui.env import DATABASE_URL, DATABASE_PASSWORD
+from open_webui.internal.db import TABLE_SUFFIX
 from sqlalchemy import engine_from_config, pool, create_engine
 
 # this is the Alembic Config object, which provides
@@ -30,6 +31,12 @@ DB_URL = DATABASE_URL
 if DB_URL:
     config.set_main_option("sqlalchemy.url", DB_URL.replace("%", "%%"))
 
+# Environment-specific alembic version table
+# - dev: alembic_version_dev
+# - staging: alembic_version_staging
+# - prod: alembic_version (no suffix)
+VERSION_TABLE = f"alembic_version{TABLE_SUFFIX}"
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -49,6 +56,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table=VERSION_TABLE,
     )
 
     with context.begin_transaction():
@@ -96,7 +104,11 @@ def run_migrations_online() -> None:
         )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table=VERSION_TABLE,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

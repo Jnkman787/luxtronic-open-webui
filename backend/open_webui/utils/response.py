@@ -163,14 +163,28 @@ def _extract_luxor_payload(payload: dict) -> dict:
 
 def _build_luxor_files(payload: dict) -> list:
     files = []
+    seen_urls = set()
     image_url = payload.get("image_url")
-    if isinstance(image_url, str) and image_url:
+    image_urls = payload.get("image_urls")
+
+    def add_image_url(url: str) -> None:
+        if url in seen_urls:
+            return
+        seen_urls.add(url)
         files.append(
             {
                 "type": "image",
-                "url": image_url,
+                "url": url,
             }
         )
+
+    if isinstance(image_url, str) and image_url:
+        add_image_url(image_url)
+
+    if isinstance(image_urls, list):
+        for url in image_urls:
+            if isinstance(url, str) and url:
+                add_image_url(url)
     return files
 
 
@@ -308,6 +322,17 @@ def convert_response_luxor_to_openai(luxor_response: dict)  -> dict:
     sources = _build_luxor_sources(payload)
     if sources:
         response["sources"] = sources
+
+
+    # Capture weave_call_id for feedback integration
+    weave_call_id = luxor_response.get("weave_call_id")
+    if weave_call_id:
+        response["weave_call_id"] = weave_call_id
+
+    # Include chart_data if present in the RAG response
+    chart_data = payload.get("chart_data")
+    if chart_data:
+        response["chart_data"] = chart_data
 
     return response
 

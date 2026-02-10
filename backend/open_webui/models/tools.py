@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, JSONField, get_db
+from open_webui.internal.db import Base, JSONField, get_db, get_table_name
 from open_webui.models.users import Users, UserResponse
 from open_webui.models.groups import Groups
 
@@ -22,7 +22,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class Tool(Base):
-    __tablename__ = "tool"
+    __tablename__ = get_table_name("tool")
 
     id = Column(String, primary_key=True)
     user_id = Column(String)

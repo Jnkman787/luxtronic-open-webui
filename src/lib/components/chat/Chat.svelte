@@ -510,6 +510,8 @@ $: if ($user?.role === 'admin') {
 					message.embeds = data.embeds;
 				} else if (type === 'chat:message:error') {
 					message.error = data.error;
+				} else if (type === 'chat:message:chart_data') {
+					message.chart_data = data.chart_data;
 				} else if (type === 'chat:message:follow_ups') {
 					message.followUps = data.follow_ups;
 
@@ -1533,7 +1535,7 @@ $: if ($user?.role === 'admin') {
 	};
 
 	const chatCompletionEventHandler = async (data, message, chatId) => {
-		const { id, done, choices, content, sources, files, selected_model_id, error, usage } = data;
+		const { id, done, choices, content, sources, files, selected_model_id, error, usage, weave_call_id } = data;
 
 		if (error) {
 			await handleOpenAIError(error, message);
@@ -1628,6 +1630,10 @@ $: if ($user?.role === 'admin') {
 
 		if (usage) {
 			message.usage = usage;
+		}
+
+		if (weave_call_id) {
+			message.weaveCallId = weave_call_id;
 		}
 
 		history.messages[message.id] = message;
@@ -1845,7 +1851,9 @@ $: if ($user?.role === 'admin') {
 					model: model.id,
 					modelName: model.name ?? model.id,
 					modelIdx: modelIdx ? modelIdx : _modelIdx,
-					timestamp: Math.floor(Date.now() / 1000) // Unix epoch
+					timestamp: Math.floor(Date.now() / 1000), // Unix epoch
+					// Store tenant context for admin users (used for Weave feedback)
+					...($user?.role === 'admin' && selectedTenantId ? { luxorTenantId: selectedTenantId } : {})
 				};
 
 				// Add message to history and Set currentId to messageId
@@ -2363,11 +2371,15 @@ $: if ($user?.role === 'admin') {
 				generationController = controller;
 				const textStream = await createOpenAITextStream(res.body, $settings.splitLargeChunks);
 				for await (const update of textStream) {
-					const { value, done, sources, error, usage } = update;
+					const { value, done, sources, error, usage, weaveCallId } = update;
 					if (error || done) {
 						generating = false;
 						generationController = null;
 						break;
+					}
+
+					if (weaveCallId) {
+						message.weaveCallId = weaveCallId;
 					}
 
 					if (mergedResponse.content == '' && value == '\n') {

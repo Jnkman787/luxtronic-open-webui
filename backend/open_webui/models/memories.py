@@ -2,7 +2,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text
 
@@ -12,7 +12,7 @@ from sqlalchemy import BigInteger, Column, String, Text
 
 
 class Memory(Base):
-    __tablename__ = "memory"
+    __tablename__ = get_table_name("memory")
 
     id = Column(String, primary_key=True)
     user_id = Column(String)

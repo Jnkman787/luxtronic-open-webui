@@ -15,6 +15,7 @@ from open_webui.env import (
     DATABASE_POOL_SIZE,
     DATABASE_POOL_TIMEOUT,
     DATABASE_ENABLE_SQLITE_WAL,
+    ENV,
 )
 from peewee_migrate import Router
 from sqlalchemy import Dialect, create_engine, MetaData, event, types
@@ -26,6 +27,39 @@ from typing_extensions import Self
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["DB"])
+
+
+####################################
+# Environment-based Table Naming
+####################################
+
+
+def get_table_suffix() -> str:
+    """
+    Returns the table name suffix based on the current environment.
+    - dev -> '_dev'
+    - staging -> '_staging'
+    - prod or empty -> '' (no suffix)
+    """
+    if ENV in ("dev", "development"):
+        return "_dev"
+    elif ENV in ("staging", "stage"):
+        return "_staging"
+    else:
+        # Production or any other value (including empty) gets no suffix
+        return ""
+
+
+def get_table_name(base_name: str) -> str:
+    """
+    Returns the full table name with environment suffix.
+    Example: get_table_name("user") -> "user_dev" (when ENV=dev)
+    """
+    return f"{base_name}{get_table_suffix()}"
+
+
+# Export for use in Alembic migrations
+TABLE_SUFFIX = get_table_suffix()
 
 
 class JSONField(types.TypeDecorator):

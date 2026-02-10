@@ -3,7 +3,7 @@ import time
 import uuid
 from typing import Optional
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -18,7 +18,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 # Tag DB Schema
 ####################
 class Tag(Base):
-    __tablename__ = "tag"
+    __tablename__ = get_table_name("tag")
     id = Column(String)
     name = Column(String)
     user_id = Column(String)

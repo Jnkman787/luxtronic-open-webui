@@ -1903,4 +1903,11 @@
 	"Characters": "Caracteres"
 ,
 	"Default Language": "Idioma predeterminado"
+,
+	"Phone Number": "Número de teléfono",
+	"Enter your phone number": "Introduce tu número de teléfono",
+	"Country Code": "Código del país",
+	"Work Hours (Availability)": "Horas de trabajo (Disponibilidad)",
+	"to": "a",
+	"Invalid phone number": "Número de teléfono inválido"
 }

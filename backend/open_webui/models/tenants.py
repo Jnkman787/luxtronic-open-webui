@@ -8,17 +8,18 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.config import S3_PROMPT_BUCKET_NAME, DEFAULT_HELP_S3_KEY
 from open_webui.services.s3 import get_s3_client
 
 
 class Tenant(Base):
-    __tablename__ = "tenant"
+    __tablename__ = get_table_name("tenant")
 
     id = Column(String, primary_key=True)
     name = Column(String, unique=True, nullable=False)
     s3_bucket = Column(String, unique=True, nullable=False)
+    tenant_group_name = Column(String(255), nullable=True)
     table_name = Column(String(255), nullable=True)
     system_config_client_name = Column(String(255), nullable=True)
     logo_image_url = Column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=True)
@@ -35,6 +36,7 @@ class TenantModel(BaseModel):
     id: str
     name: str
     s3_bucket: str
+    tenant_group_name: Optional[str] = None
     table_name: Optional[str] = None
     system_config_client_name: Optional[str] = None
     logo_image_url: Optional[str] = None
@@ -48,6 +50,7 @@ class TenantModel(BaseModel):
 class TenantForm(BaseModel):
     name: str
     s3_bucket: Optional[str] = None
+    tenant_group_name: Optional[str] = None
     table_name: Optional[str] = None
     system_config_client_name: Optional[str] = None
     logo_image_url: Optional[str] = None
@@ -57,6 +60,7 @@ class TenantForm(BaseModel):
 class TenantUpdateForm(BaseModel):
     name: Optional[str] = None
     s3_bucket: Optional[str] = None
+    tenant_group_name: Optional[str] = None
     table_name: Optional[str] = None
     system_config_client_name: Optional[str] = None
     logo_image_url: Optional[str] = None
@@ -109,6 +113,7 @@ class TenantsTable:
                     "id": str(uuid.uuid4()),
                     "name": form_data.name,
                     "s3_bucket": bucket_name,
+                    "tenant_group_name": form_data.tenant_group_name,
                     "table_name": form_data.table_name,
                     "system_config_client_name": form_data.system_config_client_name,
                     "logo_image_url": form_data.logo_image_url,
@@ -157,6 +162,8 @@ class TenantsTable:
                 update_payload["system_config_client_name"] = (
                     form_data.system_config_client_name
                 )
+            if form_data.tenant_group_name is not None:
+                update_payload["tenant_group_name"] = form_data.tenant_group_name
             if form_data.logo_image_url is not None:
                 update_payload["logo_image_url"] = form_data.logo_image_url
             if form_data.help_text is not None:

@@ -8,7 +8,7 @@ import json
 
 from cryptography.fernet import Fernet
 
-from open_webui.internal.db import Base, get_db
+from open_webui.internal.db import Base, get_db, get_table_name
 from open_webui.env import SRC_LOG_LEVELS, OAUTH_SESSION_TOKEN_ENCRYPTION_KEY
 
 from pydantic import BaseModel, ConfigDict
@@ -23,7 +23,7 @@ log.setLevel(SRC_LOG_LEVELS["MODELS"])
 
 
 class OAuthSession(Base):
-    __tablename__ = "oauth_session"
+    __tablename__ = get_table_name("oauth_session")
 
     id = Column(Text, primary_key=True)
     user_id = Column(Text, nullable=False)

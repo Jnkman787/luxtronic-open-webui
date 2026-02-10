@@ -11,29 +11,50 @@ from open_webui.env import (
     AIOHTTP_CLIENT_SESSION_SSL,
     AIOHTTP_CLIENT_TIMEOUT,
 )
+from open_webui.models.users import UserModel
+from open_webui.utils.payload import _build_user_jwt_token
 
 log = logging.getLogger(__name__)
 log.setLevel(SRC_LOG_LEVELS["MAIN"])
 
-
-async def rag_master_request(form_data: dict):
-    url = os.environ['LIVE_URL']
+async def rag_master_request(form_data: dict, user: Optional[UserModel] = None):
+    url = os.environ.get("RAG_PLATFORM_URL")
+    if not url:
+        raise HTTPException(
+            status_code=500,
+            detail="Missing RAG_PLATFORM_URL environment variable",
+        )
     return await send_post_request(
         url=url,
         payload=json.dumps(form_data),
+        user=user,
     )
 
 # CGH TODO Support Streaming
 async def send_post_request(
         url: str,
         payload: Union[str, bytes],
+        user: Optional[UserModel] = None,
 ):
     r = None
     try:
+        # Ensure jwt_token is present in the payload if user is provided
+        if user:
+            try:
+                payload_str = payload.decode("utf-8") if isinstance(payload, bytes) else payload
+                payload_dict = json.loads(payload_str)
+                if "jwt_token" not in payload_dict:
+                    payload_dict["jwt_token"] = _build_user_jwt_token(user)
+                    payload = json.dumps(payload_dict)
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                log.warning(f"Could not inject jwt_token into payload: {e}")
+
         session = aiohttp.ClientSession(
             trust_env=True, timeout=aiohttp.ClientTimeout(total=AIOHTTP_CLIENT_TIMEOUT)
         )
         api_key = os.environ.get("RAG_MASTER_API_KEY", "")
+        log_payload = payload.decode("utf-8", errors="replace") if isinstance(payload, bytes) else payload
+        log.info(f"LUXOR POST payload: {log_payload}")
         r = await session.post(
             url,
             data=payload,
@@ -46,7 +67,11 @@ async def send_post_request(
         # CGH Todo remove code accounting for lack of aws gateway
         if r.ok is False:
             try:
-                res = await r.json()
+                error_text = await r.text()
+                log.error(
+                    f"Luxor request failed status={r.status} url={url} body={error_text}"
+                )
+                res = json.loads(error_text) if error_text else {}
                 await cleanup_response(r, session)
                 if "error" in res:
                     raise HTTPException(status_code=r.status, detail=res["error"])

@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Optional
 
-from open_webui.internal.db import Base, JSONField, get_db
+from open_webui.internal.db import Base, JSONField, get_db, get_table_name
 from open_webui.env import SRC_LOG_LEVELS
 
 from open_webui.models.groups import Groups
@@ -51,7 +51,7 @@ class ModelMeta(BaseModel):
 
 
 class Model(Base):
-    __tablename__ = "model"
+    __tablename__ = get_table_name("model")
 
     id = Column(Text, primary_key=True)
     """
